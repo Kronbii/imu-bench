@@ -32,10 +32,10 @@ export function App() {
   return (
     <>
       <header className="top">
-        <a className="brand" href="#attitude" aria-label="IMX-5 bench, top">
+        <a className="brand" href="#attitude" aria-label="imu-bench, top">
           <Mark />
-          IMX-5 bench
-          <small>RUG-3 · test</small>
+          imu-bench
+          <small>any IMU, live</small>
         </a>
         <nav className="nav" aria-label="Sections">
           <a href="#attitude">Attitude</a>
@@ -54,8 +54,10 @@ export function App() {
         <Device />
       </main>
       <footer className="footer">
-        <span>RUG-3-IMX-5 · Inertial Sense SDK 2.7.1 · bridge → /stream (SSE, NDJSON batches)</span>
-        <span>Axes: X forward, away from MAIN · Y right · Z down · NED</span>
+        <span>
+          imu-bench · <a href="https://github.com/Kronbii/imu-bench">github.com/Kronbii/imu-bench</a>
+        </span>
+        <span>FRD body · NED world · SI units · docs/protocol.md</span>
       </footer>
     </>
   )

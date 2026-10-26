@@ -2,16 +2,16 @@ import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 
-import { solution } from '../decode'
-import { displayEuler, displayQuat, linkState, onFrame, reducedMotion, shortDev, store, useTick } from '../telemetry'
-import { buildRug3 } from './rug3'
+import { displayEuler, displayQuat, type Form, linkState, onFrame, reducedMotion, shortDev, store, useTick } from '../telemetry'
+import { buildModel, type Model, VIEW_RADIUS } from './models'
 
 /*
- * FIG. 01, the unit. One WebGL context: the contour-line terrain from the
- * portfolio's specimen plate (static here: the unit turns, the world does
- * not), a compass ring on the NED ground, and the RUG-3 turned by qn2b every
- * frame. Leader lines tie mono callouts to the body axes. Dragging orbits
- * the camera; the sensor's attitude only ever comes from the data.
+ * FIG. 01, the sensor. One WebGL context: the contour-line terrain from the
+ * portfolio's specimen plate (static here: the sensor turns, the world does
+ * not), a compass ring on the NED ground, and the device's model (RUG-3,
+ * breakout board or quadrotor, by its `form`) turned by the attitude
+ * quaternion every frame. Leader lines tie mono callouts to the body axes.
+ * Dragging orbits the camera; the attitude only ever comes from the data.
  */
 
 const TERRAIN_VERT = /* glsl */ `
@@ -133,13 +133,8 @@ function compassTexture() {
   return tex
 }
 
-type CalloutKey = 'x' | 'y' | 'z' | 'connector'
-const CALLOUTS: { key: CalloutKey; label: string; color?: string }[] = [
-  { key: 'x', label: '+X · roll axis', color: 'var(--x)' },
-  { key: 'y', label: '+Y · pitch axis', color: 'var(--y)' },
-  { key: 'z', label: '+Z · yaw axis, down', color: 'var(--z)' },
-  { key: 'connector', label: 'Connector' },
-]
+type CalloutText = { key: string; label: string; color?: string }
+const currentForm = (): Form => store.device?.form ?? 'board'
 
 const fmtAngle = (v: number) => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1) + '°'
 const fmtRate = (v: number) => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1) + ' °/s'
@@ -149,24 +144,32 @@ function Veil() {
   useTick(300)
   const { state, label } = linkState()
   const why = store.link?.why
+  const driver = store.src?.driver ?? store.device?.driver
+  const port = store.link?.port ?? ''
   const title =
     label === 'No server'
       ? 'Server not running'
       : why === 'searching' || why === 'unplugged'
-        ? 'Plug in the IMX'
+        ? 'Plug in the sensor'
         : why === 'not answering' || why === 'not an IMX'
           ? 'No reply from the port'
-          : 'Waiting for data'
+          : why === 'no heartbeat'
+            ? 'The vehicle went quiet'
+            : 'Waiting for data'
   const detail =
     label === 'No server'
-      ? 'Start it with python3 server/serve.py; this page reconnects by itself.'
+      ? 'Start it with ./imu-bench <driver>; this page reconnects by itself.'
       : why === 'unplugged'
-        ? 'The unit was unplugged. It reconnects on its own when it comes back, on any ttyACM.'
-        : why === 'searching'
+        ? 'It reconnects on its own when the sensor comes back, whatever port name it gets.'
+        : why === 'searching' && driver === 'imx'
           ? 'Watching /dev/imx5 and /dev/serial/by-id for an Inertial Sense unit.'
-          : why === 'not answering' || why === 'not an IMX'
-            ? 'A matching USB port is present but it does not speak ISB: another STM32 board?'
-            : 'The port is open; asking the unit for its streams again.'
+          : why === 'searching' && driver === 'mavlink'
+            ? `Listening for a MAVLink heartbeat on ${port}.`
+            : why === 'searching'
+              ? `Waiting for ${port}.`
+              : why === 'not answering' || why === 'not an IMX'
+                ? 'A matching USB port is present but it does not speak ISB: another STM32 board?'
+                : 'Nothing has arrived for a moment; it carries on as soon as data does.'
   return (
     <div className="veil" data-on={state === 'down' || undefined} role="status" aria-live="polite">
       <span className="lock" aria-hidden="true">
@@ -198,6 +201,7 @@ export function Specimen({ resetView }: { resetView: number }) {
   const [chase, setChase] = useState(true)
   const chaseRef = useRef(chase)
   chaseRef.current = chase
+  const [callouts, setCallouts] = useState<CalloutText[]>([])
 
   useEffect(() => {
     view.current.targetAz = 0
@@ -266,28 +270,42 @@ export function Specimen({ resetView }: { resetView: number }) {
     fill.position.set(-2, 2.5, 6)
     scene.add(fill)
 
-    // ---- the unit
-    const unit = buildRug3()
+    // ---- the sensor: rebuilt whenever the device's form changes
     const rig = new THREE.Group()
-    rig.add(unit.group)
     scene.add(rig)
-    setReady(true)
+    let model: Model | null = null
+    let form: Form | null = null
+    let anchors: THREE.Object3D[] = []
+    const swapModel = (next: Form) => {
+      if (model) {
+        rig.remove(model.group)
+        model.dispose()
+      }
+      model = buildModel(next)
+      form = next
+      rig.add(model.group)
+      anchors = model.callouts.map((c) => c.obj)
+      setCallouts(model.callouts.map(({ key, label, color }) => ({ key, label, color })))
+      resize()
+    }
 
     // ---- size
     let w = 1
     let h = 1
     let radius = 15
-    const resize = () => {
-      w = mount.clientWidth || 1
-      h = mount.clientHeight || 1
+    function resize() {
+      w = mount!.clientWidth || 1
+      h = mount!.clientHeight || 1
       renderer.setSize(w, h, false)
       camera.aspect = w / h
-      radius = w / h < 0.9 ? 20 : 15
+      const fit = VIEW_RADIUS[form ?? 'rug3']
+      radius = w / h < 0.9 ? fit * 1.33 : fit // keep the sensor the same apparent size on narrow plates
       camera.updateProjectionMatrix()
     }
     const ro = new ResizeObserver(resize)
     ro.observe(mount)
-    resize()
+    swapModel(currentForm())
+    setReady(true)
 
     // ---- orbit by drag or arrow keys
     let drag: { x: number; y: number; az: number; el: number } | null = null
@@ -323,9 +341,8 @@ export function Specimen({ resetView }: { resetView: number }) {
 
     // ---- callouts: each side stacks its labels by height, kept 48px apart
     const tmp = new THREE.Vector3()
-    const side = CALLOUTS.map(() => 'left' as 'left' | 'right')
-    const ly = CALLOUTS.map((_, i) => 0.2 + i * 0.18)
-    const anchors = CALLOUTS.map((c) => unit.anchors[c.key])
+    const side = [0, 1, 2, 3].map(() => 'left' as 'left' | 'right')
+    const ly = [0, 1, 2, 3].map((i) => 0.2 + i * 0.18)
     const placeCallouts = () => {
       const pts = anchors.map((a) => {
         const p = a.getWorldPosition(tmp).project(camera)
@@ -336,15 +353,26 @@ export function Specimen({ resetView }: { resetView: number }) {
         if (side[i] === 'left' && p.x > w * 0.56) side[i] = 'right'
         else if (side[i] === 'right' && p.x < w * 0.44) side[i] = 'left'
       })
+      const GAP = 50
+      const top = 70 // clear of the camera toggle
+      const bottom = h - 130 // clear of the HUD
       for (const s of ['left', 'right'] as const) {
         const idx = pts.map((_, i) => i).filter((i) => side[i] === s)
-        idx.sort((a, b) => pts[a].y - pts[b].y)
+        // ease each label toward its anchor's height...
+        for (const i of idx) ly[i] += (Math.min(bottom, Math.max(top, pts[i].y)) / h - ly[i]) * 0.15
+        // ...then hold the spacing on where the labels actually are, so they never overlap mid-move
+        idx.sort((a, b) => ly[a] - ly[b])
         let prev = -Infinity
         for (const i of idx) {
-          let target = Math.min(h - 120, Math.max(36, pts[i].y))
-          target = Math.max(target, prev + 48)
-          ly[i] += (target / h - ly[i]) * 0.15
-          prev = ly[i] * h
+          const y = Math.max(ly[i] * h, prev + GAP)
+          ly[i] = y / h
+          prev = y
+        }
+        let next = Infinity
+        for (const i of [...idx].reverse()) {
+          const y = Math.min(ly[i] * h, bottom, next - GAP)
+          ly[i] = y / h
+          next = y
         }
       }
       pts.forEach((p, i) => {
@@ -368,6 +396,7 @@ export function Specimen({ resetView }: { resetView: number }) {
     let lastText = 0
     const still = reducedMotion()
     const stop = onFrame((now) => {
+      if (currentForm() !== form) swapModel(currentForm())
       const ease = still ? 1 : 0.14
       // chase: sit behind and right of the unit's heading so every axis stays in view;
       // north-up: a fixed corner of the NED world
@@ -398,20 +427,26 @@ export function Specimen({ resetView }: { resetView: number }) {
         if (hud.current.r) hud.current.r.textContent = fmtAngle(r)
         if (hud.current.p) hud.current.p.textContent = fmtAngle(p)
         if (hud.current.y) hud.current.y.textContent = y.toFixed(1) + '°'
-        const pqr = store.imu.pqr.map((x) => (x * 180) / Math.PI)
+        const pqr = store.imu.gyro.map((x) => (x * 180) / Math.PI)
         pqr.forEach((d, i) => {
           const el = values.current[i]
           if (el) el.textContent = fmtRate(d)
           const b = bars.current[i]
           if (b) b.style.transform = `scaleY(${Math.max(0.05, Math.min(1, Math.abs(d) / 120)).toFixed(3)})`
         })
-        const con = values.current[3]
-        if (con) con.textContent = store.src?.mode === 'device' ? shortDev(store.link?.dev) : (store.src?.mode ?? '—')
-        const sol = solution(store.att.insStatus)
+        const extra = values.current[3]
+        if (extra)
+          extra.textContent =
+            form === 'quad'
+              ? (store.status?.mode ?? '—')
+              : store.src?.mode === 'device'
+                ? shortDev(store.link?.dev ?? store.link?.port)
+                : (store.src?.mode ?? '—')
         const mode = hud.current.mode
         if (mode && store.att.have) {
-          mode.textContent = sol.name
-          mode.dataset.level = sol.level
+          const st = store.status
+          mode.textContent = st?.mode.split(' · ')[0] ?? (store.att.source === 'fusion' ? 'Fused' : 'Live')
+          mode.dataset.level = st?.level ?? 'good'
         }
       }
     })
@@ -425,7 +460,7 @@ export function Specimen({ resetView }: { resetView: number }) {
       plate.removeEventListener('pointercancel', onUp)
       plate.removeEventListener('keydown', onKey)
       plate.removeEventListener('dblclick', onDbl)
-      unit.dispose()
+      model?.dispose()
       terrainGeo.dispose()
       terrainMat.dispose()
       roseGeo.dispose()
@@ -445,7 +480,7 @@ export function Specimen({ resetView }: { resetView: number }) {
         tabIndex={0}
         role="group"
         aria-roledescription="3D view"
-        aria-label="The RUG-3 turned by its live attitude. Drag or use the arrow keys to orbit; double-click resets the view."
+        aria-label="The sensor, turned by its live attitude. Drag or use the arrow keys to orbit; double-click resets the view."
         data-ready={ready || undefined}
         data-failed={failed || undefined}
       >
@@ -461,14 +496,14 @@ export function Specimen({ resetView }: { resetView: number }) {
           </div>
         </div>
         <svg className="leaders" aria-hidden="true">
-          {CALLOUTS.map((c, i) => (
+          {callouts.map((c, i) => (
             <g key={c.key}>
               <polyline ref={(el) => void (lines.current[i] = el)} className="leader" points="0,0" />
               <circle ref={(el) => void (dots.current[i] = el)} className="leader-dot" r="3" cx="-10" cy="-10" />
             </g>
           ))}
         </svg>
-        {CALLOUTS.map((c, i) => (
+        {callouts.map((c, i) => (
           <div
             key={c.key}
             ref={(el) => void (labels.current[i] = el)}
@@ -515,14 +550,29 @@ export function Specimen({ resetView }: { resetView: number }) {
           </div>
         </div>
       </div>
-      <figcaption className="caption">
-        <span className="fig">Fig. 01</span>
-        <span>
-          The RUG-3, modelled from its drawing and turned about the IMU centre by <code className="mono">qn2b</code> from
-          DID_INS_2 every frame. Chase follows the heading; North-up holds the world still. Drag to orbit, double-click to
-          reset. Bars are body rates, full at 120 °/s.
-        </span>
-      </figcaption>
+      <Caption />
     </figure>
+  )
+}
+
+function Caption() {
+  useTick(1000)
+  const form = currentForm()
+  const fused = store.att.source === 'fusion'
+  const what =
+    form === 'rug3'
+      ? 'The RUG-3, modelled from its drawing,'
+      : form === 'quad'
+        ? 'A quadrotor in its flight controller’s body frame,'
+        : `${store.device?.name ?? 'The sensor'} on a generic breakout board,`
+  return (
+    <figcaption className="caption">
+      <span className="fig">Fig. 01</span>
+      <span>
+        {what} turned about the IMU by the attitude quaternion every frame
+        {fused ? ', fused here from gyro and accelerometer (Madgwick)' : ', as the sensor reports it'}. Chase follows the
+        heading; North-up holds the world still. Drag to orbit, double-click to reset. Bars are body rates, full at 120 °/s.
+      </span>
+    </figcaption>
   )
 }

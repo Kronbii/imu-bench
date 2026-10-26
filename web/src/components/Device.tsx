@@ -1,15 +1,16 @@
 import { accelRange, DYNAMIC_MODELS, gyroRange, hex, platform, rug3Preset, sysCfg } from '../decode'
-import { shortDev, store, useTick } from '../telemetry'
+import { isImx, shortDev, store, useTick } from '../telemetry'
 import { SectionHead } from './Section'
 
 const R2D = 180 / Math.PI
 
 /*
- * Headline numbers from docs/datasheet.md. DS = IMX-5 datasheet (9/21/2026),
+ * Headline numbers from docs/inertial-sense-imx5.md. DS = IMX-5 datasheet (9/21/2026),
  * DWG = IS-RUG-3.0-G0 drawing rev 1, EOL = IS-EOL-2026-IMX5, LIVE = measured
  * on this unit.
  */
 const SPECS: [string, string, string, string][] = [
+  // IMX-5 datasheet numbers, shown only when an IMX is connected
   ['Gyro bias stability', '< 2.0 °/h', 'In-run, IEEE-952', 'DS'],
   ['Gyro angle random walk', '0.23 °/√h', 'Noise density 5 mdps/√Hz', 'DS'],
   ['Accel bias stability', '< 27 µg', 'In-run', 'DS'],
@@ -30,8 +31,9 @@ const SPECS: [string, string, string, string][] = [
 
 export function Device() {
   useTick(500)
-  const dev = store.dev
-  const cfg = store.cfg
+  const d = store.device
+  const imx = isImx()
+  const cfg = store.imx.cfg
   const link = store.link
   const src = store.src
 
@@ -42,72 +44,108 @@ export function Device() {
         label="Device"
         title={
           <>
-            The <em>unit</em>
+            The <em>device</em>
           </>
         }
         lede={
-          <>
-            What the IMX reports about itself, its flash configuration decoded, and the datasheet numbers that matter.
-            The integration guide is <code>docs/datasheet.md</code>.
-          </>
+          imx ? (
+            <>
+              What the IMX reports about itself, its flash configuration decoded, and the datasheet numbers that matter.
+              The integration guide is <code>docs/inertial-sense-imx5.md</code>.
+            </>
+          ) : (
+            <>
+              What the driver learned about the device, how it is connected, and what it can do. The stream format is
+              in <code>docs/protocol.md</code>.
+            </>
+          )
         }
       />
-      <div className="grid-3">
+      <div className={imx ? 'grid-3' : 'grid-2'}>
         <article className="card">
           <span className="tick" />
-          <span className="label">Identity · DID_DEV_INFO</span>
+          <span className="label">Identity</span>
           <dl className="kv" style={{ marginTop: 10 }}>
-            <dt>Product</dt>
-            <dd>RUG-3-IMX-5</dd>
-            <dt>Part number</dt>
-            <dd>IS-RUG-3.0-G0</dd>
+            <dt>Model</dt>
+            <dd>{d?.model ?? '—'}</dd>
+            <dt>Vendor</dt>
+            <dd>{d?.vendor ?? '—'}</dd>
             <dt>Serial</dt>
-            <dd>{dev ? dev.serialNumber : '—'}</dd>
-            <dt>Hardware</dt>
-            <dd>{dev ? `IMX ${dev.hardwareVer}` : '—'}</dd>
+            <dd>{d?.serial || '—'}</dd>
+            {d?.hardware && (
+              <>
+                <dt>Hardware</dt>
+                <dd>{d.hardware}</dd>
+              </>
+            )}
             <dt>Firmware</dt>
-            <dd>{dev ? `${dev.firmwareVer} · ${dev.buildDate}` : '—'}</dd>
-            <dt>Platform</dt>
-            <dd>{cfg ? platform(cfg.platformConfig) : '—'}</dd>
-            <dt>Add. info</dt>
-            <dd>{dev?.addInfo || '—'}</dd>
+            <dd>{d?.firmware ?? '—'}</dd>
+            {imx && cfg && (
+              <>
+                <dt>Platform</dt>
+                <dd>{platform(cfg.platformConfig)}</dd>
+              </>
+            )}
+            <dt>Driver</dt>
+            <dd>{d?.driver ?? src?.driver ?? '—'}</dd>
             <dt>Link</dt>
-            <dd>{src?.mode === 'device' ? (link?.up ? `${shortDev(link.dev ?? link.port)} · USB CDC` : (link?.why ?? '—')) : (src?.mode ?? '—')}</dd>
+            <dd>
+              {src?.mode === 'device'
+                ? link?.up
+                  ? shortDev(link.dev ?? link.port)
+                  : (link?.why ?? '—')
+                : (src?.detail ?? src?.mode ?? '—')}
+            </dd>
+            <dt>Attitude</dt>
+            <dd>{store.att.source === 'fusion' ? `fused here (${d?.fusion ?? 'madgwick'})` : 'from the sensor'}</dd>
           </dl>
-        </article>
-
-        <article className="card">
-          <span className="tick" />
-          <span className="label">Configuration · DID_FLASH_CONFIG</span>
-          <dl className="kv" style={{ marginTop: 10 }}>
-            <dt>Gyro · accel range</dt>
-            <dd>{cfg ? `±${gyroRange(cfg.sensorConfig)} °/s · ±${accelRange(cfg.sensorConfig)} g` : '—'}</dd>
-            <dt>IMU sample · nav output</dt>
-            <dd>{cfg ? `${cfg.startupImuDtMs} ms · ${cfg.startupNavDtMs} ms` : '—'}</dd>
-            <dt>Dynamic model</dt>
-            <dd>{cfg ? (DYNAMIC_MODELS[cfg.dynamicModel] ?? cfg.dynamicModel) : '—'}</dd>
-            <dt>RUG-3 preset</dt>
-            <dd>{cfg ? rug3Preset(cfg.platformConfig) : '—'}</dd>
-            <dt>Serial baud</dt>
-            <dd>{cfg ? `${cfg.ser0BaudRate} / ${cfg.ser1BaudRate} / ${cfg.ser2BaudRate}` : '—'}</dd>
-            <dt>Declination</dt>
-            <dd>{cfg ? `${(cfg.magDeclination * R2D).toFixed(2)}°` : '—'}</dd>
-            <dt>INS rotation</dt>
-            <dd>{cfg ? cfg.insRotation.map((v) => (v * R2D).toFixed(1)).join(', ') + '°' : '—'}</dd>
-            <dt>INS offset</dt>
-            <dd>{cfg ? cfg.insOffset.map((v) => v.toFixed(3)).join(', ') + ' m' : '—'}</dd>
-          </dl>
-          {cfg && (
+          {d && (
             <div className="chips">
-              {sysCfg(cfg.sysCfgBits).map((s) => (
-                <span key={s} className="chip">
-                  {s}
-                </span>
-              ))}
-              <span className="chip">ioConfig {hex(cfg.ioConfig, 2)}</span>
+              {d.caps
+                .filter((c) => !c.startsWith('panel:'))
+                .map((c) => (
+                  <span key={c} className="chip">
+                    {c.replace('cmd:', 'command: ')}
+                  </span>
+                ))}
             </div>
           )}
         </article>
+
+        {imx && (
+          <article className="card">
+            <span className="tick" />
+            <span className="label">Configuration · DID_FLASH_CONFIG</span>
+            <dl className="kv" style={{ marginTop: 10 }}>
+              <dt>Gyro · accel range</dt>
+              <dd>{cfg ? `±${gyroRange(cfg.sensorConfig)} °/s · ±${accelRange(cfg.sensorConfig)} g` : '—'}</dd>
+              <dt>IMU sample · nav output</dt>
+              <dd>{cfg ? `${cfg.startupImuDtMs} ms · ${cfg.startupNavDtMs} ms` : '—'}</dd>
+              <dt>Dynamic model</dt>
+              <dd>{cfg ? (DYNAMIC_MODELS[cfg.dynamicModel] ?? cfg.dynamicModel) : '—'}</dd>
+              <dt>RUG-3 preset</dt>
+              <dd>{cfg ? rug3Preset(cfg.platformConfig) : '—'}</dd>
+              <dt>Serial baud</dt>
+              <dd>{cfg ? `${cfg.ser0BaudRate} / ${cfg.ser1BaudRate} / ${cfg.ser2BaudRate}` : '—'}</dd>
+              <dt>Declination</dt>
+              <dd>{cfg ? `${(cfg.magDeclination * R2D).toFixed(2)}°` : '—'}</dd>
+              <dt>INS rotation</dt>
+              <dd>{cfg ? cfg.insRotation.map((v) => (v * R2D).toFixed(1)).join(', ') + '°' : '—'}</dd>
+              <dt>INS offset</dt>
+              <dd>{cfg ? cfg.insOffset.map((v) => v.toFixed(3)).join(', ') + ' m' : '—'}</dd>
+            </dl>
+            {cfg && (
+              <div className="chips">
+                {sysCfg(cfg.sysCfgBits).map((x) => (
+                  <span key={x} className="chip">
+                    {x}
+                  </span>
+                ))}
+                <span className="chip">ioConfig {hex(cfg.ioConfig, 2)}</span>
+              </div>
+            )}
+          </article>
+        )}
 
         <article className="card">
           <span className="tick" />
@@ -122,24 +160,26 @@ export function Device() {
               ))}
             </ul>
           ) : (
-            <p className="note">Commands you send and bridge messages land here.</p>
+            <p className="note">Connections, commands you send and driver messages land here.</p>
           )}
         </article>
       </div>
 
-      <div style={{ marginTop: 16 }}>
-        <div className="specs">
-          {SPECS.map(([name, value, note, source]) => (
-            <div key={name} className="spec">
-              <span className="label">{name}</span>
-              <b>{value}</b>
-              <p>
-                {note} <span className="mono" style={{ color: 'var(--ink3)' }}>· {source}</span>
-              </p>
-            </div>
-          ))}
+      {imx && (
+        <div style={{ marginTop: 16 }}>
+          <div className="specs">
+            {SPECS.map(([name, value, note, source]) => (
+              <div key={name} className="spec">
+                <span className="label">{name}</span>
+                <b>{value}</b>
+                <p>
+                  {note} <span className="mono" style={{ color: 'var(--ink3)' }}>· {source}</span>
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </section>
   )
 }

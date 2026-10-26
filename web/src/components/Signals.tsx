@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import { store } from '../telemetry'
+import { store, useTick } from '../telemetry'
 import { LiveChart, type Series } from './LiveChart'
 import { SectionHead } from './Section'
 
@@ -19,6 +19,7 @@ const WINDOWS = [5, 10, 30, 60]
 export function Signals() {
   const [win, setWin] = useState(10)
   const [paused, setPaused] = useState(false)
+  useTick(1000) // the magnetometer's unit arrives with the stream
   const s = store.series
 
   return (
@@ -33,9 +34,9 @@ export function Signals() {
         }
         lede={
           <>
-            Body-frame rates and specific force from <code>DID_IMU</code>, field from <code>DID_MAGNETOMETER</code>,
-            tilt from <code>DID_INS_1</code>. Sitting level and still, Z reads about −9.81 m/s²: the accelerometer
-            measures the push of the table, not gravity. Hover or focus a chart to read every axis at one instant.
+            Body-frame rates and specific force from the IMU, the magnetic field, and tilt from the attitude, all in
+            the FRD body frame. Sitting level and still, Z reads about −9.81 m/s²: the accelerometer measures the push
+            of the table, not gravity. Hover or focus a chart to read every axis at one instant.
           </>
         }
       />
@@ -56,7 +57,7 @@ export function Signals() {
       </div>
       <div className="grid-2">
         <LiveChart
-          fig="Fig. 02 · DID_INS_1"
+          fig="Fig. 02 · att"
           title="Tilt"
           unit="deg"
           ring={s.tilt}
@@ -68,7 +69,7 @@ export function Signals() {
           csvName="tilt"
         />
         <LiveChart
-          fig="Fig. 03 · DID_IMU"
+          fig="Fig. 03 · imu.gyro"
           title="Angular rate"
           unit="deg/s"
           ring={s.gyro}
@@ -80,7 +81,7 @@ export function Signals() {
           csvName="gyro"
         />
         <LiveChart
-          fig="Fig. 04 · DID_IMU"
+          fig="Fig. 04 · imu.acc"
           title="Specific force"
           unit="m/s²"
           ring={s.acc}
@@ -92,9 +93,9 @@ export function Signals() {
           csvName="accel"
         />
         <LiveChart
-          fig="Fig. 05 · DID_MAGNETOMETER"
+          fig="Fig. 05 · mag"
           title="Magnetic field"
-          unit="normalized, ≈1 when calibrated"
+          unit={store.mag.unit === 'norm' ? 'normalized, ≈1 when calibrated' : store.mag.unit}
           ring={s.mag}
           series={XYZ}
           windowS={win}

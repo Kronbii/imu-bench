@@ -1,4 +1,4 @@
-# RUG-3-IMX-5: integration guide
+# Inertial Sense RUG-3-IMX-5: integration guide
 
 What this unit outputs, how well, in which frames and on which clock, and what you need to fuse it with a moving
 camera. This covers **this unit only**: P/N IS-RUG-3.0-G0, firmware 2.7.0, SDK 2.7.1.

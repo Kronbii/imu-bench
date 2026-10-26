@@ -23,7 +23,7 @@ if [ ! -x "$BIN" ]; then
 fi
 
 if pgrep -x imx_bridge >/dev/null; then
-  echo "Note: the dashboard's bridge has the IMX port open. Stop server/serve.py first, or cltool will not connect." >&2
+  echo "Note: the dashboard's bridge has the IMX port open. Stop imu-bench first, or cltool will not connect." >&2
 fi
 
 exec "$BIN" "$@"

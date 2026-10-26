@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "imu-bench"
+version = "0.2.0"
+description = "Stream any IMU or AHRS (Inertial Sense, MAVLink, serial/UDP lines, ROS 2) to a live 3D dashboard, a recording, or ROS 2."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Rami Kronbi" }]
+requires-python = ">=3.8"
+dependencies = []
+keywords = ["imu", "ahrs", "inertial", "mavlink", "px4", "ros2", "madgwick", "dashboard", "inertial-sense"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: POSIX :: Linux",
+  "Topic :: Scientific/Engineering",
+]
+
+[project.optional-dependencies]
+mavlink = ["pymavlink>=2.4", "pyserial>=3.5"]
+
+[project.urls]
+Homepage = "https://github.com/Kronbii/imu-bench"
+Demo = "https://kronbii.github.io/imu-bench/"
+
+[project.scripts]
+imu-bench = "imubench.__main__:main"
+
+[tool.setuptools]
+packages = ["imubench", "imubench.drivers"]

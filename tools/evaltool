@@ -31,7 +31,7 @@ if [ ! -x "$APP" ]; then
 fi
 
 if pgrep -x imx_bridge >/dev/null; then
-  echo "Note: the dashboard's bridge has the IMX port open. Stop server/serve.py before connecting EvalTool to it." >&2
+  echo "Note: the dashboard's bridge has the IMX port open. Stop imu-bench before connecting EvalTool to it." >&2
 fi
 
 # AppImages mount themselves with FUSE 2; without it, unpack to a temp dir on each run instead
