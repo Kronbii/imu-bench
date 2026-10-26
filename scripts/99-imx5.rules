@@ -1,0 +1,13 @@
+# Inertial Sense RUG-3-IMX-5 (IMX-5 over USB CDC-ACM).
+#
+# 0483:5740 is ST's generic virtual COM port ID, shared by many STM32
+# devices, so the runtime rule matches this unit's USB serial number. Find a
+# new unit's with:  udevadm info -a -n /dev/ttyACM0 | grep -m1 'ATTRS{serial}'
+#
+# - /dev/imx5 always points at the unit, whatever ttyACM number it gets
+# - ModemManager is told to leave it alone (it otherwise probes ttyACM ports
+#   and holds them open: "Device or resource busy")
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="5740", ATTRS{serial}=="20883973534B", SYMLINK+="imx5", GROUP="dialout", MODE="0660", ENV{ID_MM_DEVICE_IGNORE}="1"
+
+# STM32 DFU bootloader, used only during firmware updates (from the SDK's 90-inertialsense.rules)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="df11", MODE="0666"

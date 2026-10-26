@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Inertial Sense EvalTool 2.7.1 (the vendor's GUI), run from this repo.
+#
+#   tools/evaltool
+#
+# The 157 MB AppImage is not in git: the first run downloads the SDK 2.7.1
+# release into tools/.cache and checks it against the checksum below. Linux
+# x86-64 only; there is no ARM (Jetson) build, use tools/cltool there.
+set -euo pipefail
+
+HERE="$(cd "$(dirname "$0")" && pwd)"
+APP="$HERE/.cache/EvalTool-2.7.1-x86_64.AppImage"
+SHA256="d7c5d35f72c3fbacbee6e8ba0cdb93c7ebaa77df5a97182c28d2e0ebadb6da1c"
+URL="https://github.com/inertialsense/inertial-sense-sdk/releases/download/2.7.1/EvalTool-2.7.1%2B4ba1cbef.428b5-0-linux-x86_64.zip"
+
+if [ "$(uname -m)" != "x86_64" ]; then
+  echo "EvalTool is only released for Linux x86-64 and Windows. On this machine use tools/cltool." >&2
+  exit 1
+fi
+
+if [ ! -x "$APP" ]; then
+  echo "Downloading EvalTool 2.7.1 (157 MB) into tools/.cache ..." >&2
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' EXIT
+  curl -fL --progress-bar -o "$tmp/evaltool.zip" "$URL"
+  unzip -q -j "$tmp/evaltool.zip" '*-x86_64.AppImage' -d "$tmp"
+  echo "$SHA256  $(ls "$tmp"/*.AppImage)" | sha256sum -c --quiet - || { echo "checksum mismatch, not installing" >&2; exit 1; }
+  mkdir -p "$HERE/.cache"
+  mv "$tmp"/*.AppImage "$APP"
+  chmod +x "$APP"
+fi
+
+if pgrep -x imx_bridge >/dev/null; then
+  echo "Note: the dashboard's bridge has the IMX port open. Stop server/serve.py before connecting EvalTool to it." >&2
+fi
+
+# AppImages mount themselves with FUSE 2; without it, unpack to a temp dir on each run instead
+if ldconfig -p 2>/dev/null | grep -q 'libfuse\.so\.2'; then
+  exec "$APP" "$@"
+else
+  exec "$APP" --appimage-extract-and-run "$@"
+fi

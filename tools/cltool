@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Inertial Sense cltool from the SDK submodule (sdk/, v2.7.1), built on first use.
+#
+#   tools/cltool -c /dev/ttyACM0 -get DID_DEV_INFO
+#   tools/cltool -h
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SDK="$ROOT/sdk"
+BIN="$SDK/cltool/build/cltool"
+JOBS="$(nproc 2>/dev/null || echo 4)"
+
+if [ ! -x "$BIN" ]; then
+  [ -f "$SDK/src/ISComm.h" ] || git -C "$ROOT" submodule update --init --recursive
+  if [ ! -f "$SDK/build/libInertialSenseSDK.a" ]; then
+    echo "Building the Inertial Sense SDK (first run only) ..." >&2
+    cmake -S "$SDK" -B "$SDK/build" -DCMAKE_BUILD_TYPE=Release >&2
+    cmake --build "$SDK/build" -j "$JOBS" >&2
+  fi
+  echo "Building cltool ..." >&2
+  cmake -S "$SDK/cltool" -B "$SDK/cltool/build" -DCMAKE_BUILD_TYPE=Release >&2
+  cmake --build "$SDK/cltool/build" -j "$JOBS" >&2
+fi
+
+if pgrep -x imx_bridge >/dev/null; then
+  echo "Note: the dashboard's bridge has the IMX port open. Stop server/serve.py first, or cltool will not connect." >&2
+fi
+
+exec "$BIN" "$@"
