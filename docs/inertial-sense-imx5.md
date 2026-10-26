@@ -58,6 +58,30 @@ From the IMX-5 datasheet (9/21/2026). Typical values.
 
 Magnetometer: ±2500 µT, 20 nT/√Hz. Barometer: 30–125 kPa, 0.18 Pa/√Hz, 5 Hz bandwidth.
 
+### Barometer and height
+
+The barometer measures **pressure**, not height. `DID_BAROMETER.mslBar` is **pressure altitude**: the standard
+atmosphere with sea-level pressure fixed at 1013.25 hPa. On this unit it read 56.04 m where that formula gives
+56.00 m from the same pressure, so it is not your real altitude. The `humidity` field is 0; this unit doesn't measure it.
+
+Measured on this unit, sitting still indoors (50 Hz, 20 s):
+
+| | |
+|---|---|
+| Raw noise, 1σ | 2 Pa ≈ **16 cm** per sample |
+| Smoothed (~0.5 s) | **2–4 cm** |
+| Drift | 12 cm in 20 s (room air, temperature) |
+
+What that means in use:
+
+- **Relative height over seconds to minutes: yes**, to a few centimetres once smoothed. Zero it, then watch it
+  change (the dashboard's *Barometer · height* card does this).
+- **Absolute altitude: only with the local sea-level pressure (QNH)**, and still a few metres. Weather moves
+  pressure by about 1 hPa an hour, which is about 8 m.
+- It is sensitive to airflow on the case (prop wash, wind) and to temperature (the sensor read 32 °C inside the case).
+- Without GNSS the filter runs in AHRS mode and outputs no position, so it doesn't fuse barometric altitude into a
+  height estimate for you; do it in your own estimator.
+
 ### Noise model for your estimator
 
 The same numbers in the units Kalibr, OpenVINS, VINS-Fusion and similar expect. The bias random walks are **not

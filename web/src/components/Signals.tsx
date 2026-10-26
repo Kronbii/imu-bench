@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { store, useTick } from '../telemetry'
+import { HeightCard } from './Height'
 import { LiveChart, type Series } from './LiveChart'
 import { SectionHead } from './Section'
 
@@ -13,6 +14,11 @@ const XYZ: Series[] = [
 const TILT: Series[] = [
   { name: 'Roll', color: '--x', channel: 0 },
   { name: 'Pitch', color: '--y', channel: 1 },
+]
+// the raw samples in grey under the smoothed height: the gap between them is the noise
+const HEIGHT: Series[] = [
+  { name: 'Raw', color: '--ink3', channel: 0 },
+  { name: 'Smoothed', color: '--z', channel: 1 },
 ]
 const WINDOWS = [5, 10, 30, 60]
 
@@ -105,6 +111,23 @@ export function Signals() {
           csvName="mag"
         />
       </div>
+      {!!store.baro && (
+        <div className="grid-2" style={{ marginTop: 16 }}>
+          <HeightCard />
+          <LiveChart
+            fig="Fig. 06 · baro"
+            title="Height above zero"
+            unit="m"
+            ring={s.height}
+            series={HEIGHT}
+            windowS={win}
+            paused={paused}
+            minSpan={0.4}
+            digits={2}
+            csvName="height"
+          />
+        </div>
+      )}
     </section>
   )
 }

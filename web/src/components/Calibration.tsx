@@ -181,7 +181,7 @@ export function Calibration() {
         <article className="card">
           <span className="tick" />
           <div className="card-head">
-            <span className="label">Fig. 06 · Field coverage, last 60 s</span>
+            <span className="label">Fig. 07 · Field coverage, last 60 s</span>
             <button className="pill" data-variant="quiet" data-size="s" onClick={() => store.magCloud.clear()}>
               Clear
             </button>

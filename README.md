@@ -59,8 +59,9 @@ A sensor that only reports gyro and accelerometer gets its attitude from a built
 </tr>
 </table>
 
-Also: health decoded from each device's status words, magnetometer coverage plots for checking a calibration,
-the device's identity, configuration and capabilities, record and replay, and a ROS 2 publisher.
+Also: barometric height (zero it, enter your QNH, watch the noise live), health decoded from each device's status
+words, magnetometer coverage plots for checking a calibration, the device's identity, configuration and
+capabilities, record and replay, and a ROS 2 publisher.
 
 <table>
 <tr>

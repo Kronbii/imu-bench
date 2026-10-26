@@ -132,6 +132,9 @@ export class Ring {
 
 const RAD = 180 / Math.PI
 
+/** Standard sea-level pressure, hPa: what "pressure altitude" assumes. Defined before the store, which reads it. */
+export const ISA_QNH = 1013.25
+
 export const store = {
   connected: false,
   src: null as null | { mode: 'device' | 'sim' | 'replay' | 'demo'; driver?: string; detail: string },
@@ -149,6 +152,8 @@ export const store = {
   imu: { time: 0, gyro: [0, 0, 0] as Vec3, acc: [0, 0, 0] as Vec3 },
   mag: { time: 0, mag: [0, 0, 0] as Vec3, unit: 'norm' as 'norm' | 'uT' | 'gauss' },
   baro: null as null | { time: number; pressure: number; alt?: number; temp?: number },
+  /** barometric height: pressure smoothed, and the pressure at "zero" (kPa) */
+  height: { qnh: loadQnh(), p: NaN, pRef: null as number | null, time: 0 },
   imx: {
     dev: null as ImxDev | null,
     cfg: null as ImxCfg | null,
@@ -163,6 +168,7 @@ export const store = {
     gyro: new Ring(12000, 3), // deg/s
     acc: new Ring(12000, 3), // m/s²
     mag: new Ring(4000, 3),
+    height: new Ring(4000, 2), // raw and smoothed height above the zero (m)
   },
   /** last minute of magnetometer vectors, for the coverage plots */
   magCloud: new Ring(3000, 3),
@@ -175,6 +181,41 @@ export const store = {
 }
 
 export const has = (cap: string) => !!store.device?.caps?.includes(cap)
+
+// ---- barometric height --------------------------------------------------------------
+
+/** Height above the level where pressure equals qnh (hPa), from pressure (kPa); ICAO standard atmosphere. */
+export const baroAltitude = (kPa: number, qnh = ISA_QNH) => 44330.8 * (1 - Math.pow((kPa * 10) / qnh, 0.190263))
+
+function loadQnh() {
+  try {
+    const v = parseFloat(localStorage.getItem('imu-bench.qnh') ?? '')
+    return v > 800 && v < 1100 ? v : ISA_QNH
+  } catch {
+    return ISA_QNH
+  }
+}
+
+export function setQnh(hPa: number) {
+  store.height.qnh = hPa
+  try {
+    localStorage.setItem('imu-bench.qnh', String(hPa))
+  } catch {
+    /* private mode: it just won't be remembered */
+  }
+}
+
+/** Make the current height the zero. */
+export function zeroHeight() {
+  store.height.pRef = store.height.p
+  store.series.height.clear()
+}
+
+/** Height above the zero (m): smoothed, or NaN before any pressure arrives. */
+export const relHeight = () => {
+  const h = store.height
+  return h.pRef === null || isNaN(h.p) ? NaN : baroAltitude(h.p, h.qnh) - baroAltitude(h.pRef, h.qnh)
+}
 export const isImx = () => has('panel:imx')
 
 function log(msg: string) {
@@ -218,9 +259,18 @@ export function ingest(m: Record<string, any>) {
       store.series.mag.push(m.time, m.mag[0], m.mag[1], m.mag[2])
       store.magCloud.push(m.time, m.mag[0], m.mag[1], m.mag[2])
       break
-    case 'baro':
+    case 'baro': {
       store.baro = m as NonNullable<typeof store.baro>
+      const h = store.height
+      // ~0.5 s low-pass in the pressure domain: the raw sample is ~2 Pa (16 cm) noisy
+      const dt = h.time && m.time > h.time ? Math.min(1, m.time - h.time) : 0.02
+      h.p = isNaN(h.p) || m.time < h.time ? m.pressure : h.p + (1 - Math.exp(-dt / 0.5)) * (m.pressure - h.p)
+      h.time = m.time
+      if (h.pRef === null) h.pRef = h.p
+      const ref = baroAltitude(h.pRef, h.qnh)
+      store.series.height.push(m.time, baroAltitude(m.pressure, h.qnh) - ref, baroAltitude(h.p, h.qnh) - ref)
       break
+    }
     case 'status':
       store.status = m as Status
       break
