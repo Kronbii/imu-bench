@@ -247,8 +247,9 @@ export function Camera() {
       const src: [number, number] = vid?.videoWidth ? [vid.videoWidth, vid.videoHeight] : [W, H]
       const fSrc = src[0] / 2 / Math.tan((st.hfov * DEG) / 2)
 
-      // the virtual camera of the stabilised view
-      const target = st.stab === 'level' ? levelBodyCamera(q, toBody) : user
+      // the virtual camera of the stabilised view: level means the nominal mount on a level body, so the trims
+      // (the camera's own misalignment) are taken out too and the horizon comes out truly level
+      const target = st.stab === 'level' ? levelBodyCamera(q, mount(st.mountName)) : user
       if (st.stab === 'smooth') {
         const qc = matToQuat(user)
         smooth = smooth ? slerp(smooth, qc, 1 - Math.exp(-dt * 2 / 0.4)) : qc
