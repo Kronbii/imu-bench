@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { MAG_CAL_STATE } from '../decode'
+import { apply, type MagCal } from '../lib/ellipsoid'
 import { has, onFrame, sendCommand, store, useTick } from '../telemetry'
+import { MagFit } from './MagFit'
 import { SectionHead } from './Section'
 
 /*
@@ -19,16 +21,18 @@ const PLANES: { name: string; a: number; b: number; la: string; lb: string }[] =
   { name: 'XZ · seen from the side', a: 0, b: 2, la: 'X', lb: 'Z' },
 ]
 
-function useCloudStats() {
+function useCloudStats(preview: React.RefObject<MagCal | null>) {
   const [s, set] = useState({ n: 0, mean: 0, spread: 0, centre: [0, 0, 0], span: 1 })
   useEffect(() => {
     const id = setInterval(() => {
       const r = store.magCloud
       if (!r.size) return
+      const cal = preview.current // previewing a fit: the statistics of the corrected field
       let sx = 0, sy = 0, sz = 0, sm = 0, sm2 = 0, span = 0
       for (let i = 0; i < r.size; i++) {
         const j = r.at(i)
-        const x = r.ch[0][j], y = r.ch[1][j], z = r.ch[2][j]
+        const raw = [r.ch[0][j], r.ch[1][j], r.ch[2][j]]
+        const [x, y, z] = cal ? apply(cal, raw) : raw
         const m = Math.hypot(x, y, z)
         sx += x; sy += y; sz += z; sm += m; sm2 += m * m
         span = Math.max(span, Math.abs(x), Math.abs(y), Math.abs(z))
@@ -38,11 +42,13 @@ function useCloudStats() {
       set({ n, mean, spread: Math.sqrt(Math.max(0, sm2 / n - mean * mean)) / mean, centre: [sx / n, sy / n, sz / n], span })
     }, 500)
     return () => clearInterval(id)
-  }, [])
+  }, [preview])
   return s
 }
 
-function Projection({ a, b, la, lb, name }: (typeof PLANES)[number]) {
+type Preview = React.RefObject<MagCal | null>
+
+function Projection({ a, b, la, lb, name, preview }: (typeof PLANES)[number] & { preview: Preview }) {
   const ref = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
     const cv = ref.current!
@@ -58,18 +64,25 @@ function Projection({ a, b, la, lb, name }: (typeof PLANES)[number]) {
       g.setTransform(dpr, 0, 0, dpr, 0, 0)
       g.clearRect(0, 0, S, S)
       const r = store.magCloud
-      // the reference circle: |B| = 1 for normalised fields, the mean |B| for µT or gauss
+      // with a fit previewed, the points as it would correct them
+      const cal = preview.current
+      const pts = new Float32Array(r.size * 2)
+      for (let i = 0; i < r.size; i++) {
+        const j = r.at(i)
+        const m = [r.ch[0][j], r.ch[1][j], r.ch[2][j]]
+        const v = cal ? apply(cal, m) : m
+        pts[i * 2] = v[a]
+        pts[i * 2 + 1] = v[b]
+      }
+      // the reference circle: the fitted field strength, 1 for normalised fields, else the mean |B|
       let sumB = 0
       for (let i = 0; i < r.size; i++) {
         const j = r.at(i)
         sumB += Math.hypot(r.ch[0][j], r.ch[1][j], r.ch[2][j])
       }
-      const R = store.mag.unit === 'norm' || !r.size ? 1 : sumB / r.size
+      const R = cal ? cal.radius : store.mag.unit === 'norm' || !r.size ? 1 : sumB / r.size
       let span = R * 1.15
-      for (let i = 0; i < r.size; i++) {
-        const j = r.at(i)
-        span = Math.max(span, Math.abs(r.ch[a][j]) * 1.1, Math.abs(r.ch[b][j]) * 1.1)
-      }
+      for (let i = 0; i < pts.length; i++) span = Math.max(span, Math.abs(pts[i]) * 1.1)
       scale += (span - scale) * 0.1
       const c = S / 2
       const k = (S / 2 - 10) / scale
@@ -88,14 +101,13 @@ function Projection({ a, b, la, lb, name }: (typeof PLANES)[number]) {
       g.stroke()
       // the cloud, newer points brighter
       for (let i = 0; i < r.size; i++) {
-        const j = r.at(i)
         g.fillStyle = `rgba(183, 211, 168, ${0.12 + 0.5 * (i / r.size)})`
-        g.fillRect(c + r.ch[a][j] * k - 1, c - r.ch[b][j] * k - 1, 2, 2)
+        g.fillRect(c + pts[i * 2] * k - 1, c - pts[i * 2 + 1] * k - 1, 2, 2)
       }
       if (r.size) {
-        const j = r.at(r.size - 1)
+        const i = r.size - 1
         g.beginPath()
-        g.arc(c + r.ch[a][j] * k, c - r.ch[b][j] * k, 4, 0, Math.PI * 2)
+        g.arc(c + pts[i * 2] * k, c - pts[i * 2 + 1] * k, 4, 0, Math.PI * 2)
         g.fillStyle = '#b7d3a8'
         g.fill()
         g.lineWidth = 2
@@ -107,7 +119,7 @@ function Projection({ a, b, la, lb, name }: (typeof PLANES)[number]) {
       g.fillText(`+${la}`, S - 22, c - 6)
       g.fillText(`+${lb}`, c + 6, 16)
     })
-  }, [a, b])
+  }, [a, b, preview])
   return (
     <div className="proj">
       <canvas ref={ref} aria-label={`Magnetometer samples projected on the ${name} plane`} role="img" />
@@ -118,7 +130,8 @@ function Projection({ a, b, la, lb, name }: (typeof PLANES)[number]) {
 
 export function Calibration() {
   useTick(250)
-  const stats = useCloudStats()
+  const preview = useRef<MagCal | null>(null)
+  const stats = useCloudStats(preview)
   const [armed, setArmed] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
   const cal = store.imx.magcal
@@ -162,7 +175,7 @@ export function Calibration() {
   return (
     <section id="calibrate" className="section">
       <SectionHead
-        n="04"
+        n="06"
         label="Calibrate"
         title={
           <>
@@ -181,18 +194,18 @@ export function Calibration() {
         <article className="card">
           <span className="tick" />
           <div className="card-head">
-            <span className="label">Fig. 07 · Field coverage, last 60 s</span>
+            <span className="label">Fig. 11 · Field coverage, last 60 s</span>
             <button className="pill" data-variant="quiet" data-size="s" onClick={() => store.magCloud.clear()}>
               Clear
             </button>
           </div>
           <h3 className="card-title">
             Where the field has been
-            <small>{stats.n} samples</small>
+            <small>{stats.n} samples{preview.current ? ' · fit previewed' : ''}</small>
           </h3>
           <div className="proj-grid">
             {PLANES.map((p) => (
-              <Projection key={p.name} {...p} />
+              <Projection key={p.name} {...p} preview={preview} />
             ))}
           </div>
           <dl className="kv" style={{ marginTop: 16 }}>
@@ -333,6 +346,7 @@ export function Calibration() {
           </article>
         )}
       </div>
+      <MagFit preview={preview} />
     </section>
   )
 }

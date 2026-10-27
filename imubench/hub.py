@@ -7,7 +7,7 @@ from pathlib import Path
 from .protocol import clean, dumps
 
 # kept for browsers that connect later, so they are complete straight away
-STICKY = {"src", "link", "device", "status", "imx.dev", "imx.cfg", "imx.sys", "imx.magobs", "imx.magcal", "imx.sigma", "imx.inl2"}
+STICKY = {"src", "link", "device", "status", "magcal", "imx.dev", "imx.cfg", "imx.sys", "imx.magobs", "imx.magcal", "imx.sigma", "imx.inl2"}
 # live readings that must not outlive the device they came from
 LIVE = {"status", "imx.sys", "imx.magobs", "imx.magcal", "imx.sigma", "imx.inl2"}
 

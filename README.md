@@ -13,7 +13,7 @@ recording, or standard ROS 2 topics.
 
 <img src="docs/media/hero.webp" alt="The imu-bench dashboard: an Inertial Sense RUG-3 turning in 3D over a contour-line terrain with axis callouts, live roll, pitch and yaw readouts, an attitude indicator and a heading card." width="100%">
 
-<sub>The dashboard, recorded frame by frame from its built-in simulator. <a href="https://kronbii.github.io/imu-bench/">Open the live demo</a>: it runs in your browser, no hardware or install.</sub>
+<sub>The dashboard, recorded frame by frame from its built-in simulator. <a href="https://kronbii.github.io/imu-bench/">Open the live demo</a>: it runs in your browser, no hardware or install, every panel live.</sub>
 
 </div>
 
@@ -59,9 +59,55 @@ A sensor that only reports gyro and accelerometer gets its attitude from a built
 </tr>
 </table>
 
+### Analysis, not just plots
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**Where the vibration lives.** Welch spectra of every axis, the strongest peaks with their rpm, and a 30-second
+spectrogram that shows a motor tone stepping with throttle. Pick notch-filter centres, find the frame resonance,
+see what will blur a camera or upset an estimator.
+
+</td>
+<td width="50%"><img src="docs/media/vibration.webp" alt="A log-scale power spectrum with peaks labelled 23, 94 and 188 Hz beside a spectrogram where two motor tones step between throttle settings over 30 seconds."></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/media/camera.webp" alt="Left: a camera view with the IMU-predicted horizon and pitch ladder drawn over it. Right: the same view warped by rotation alone so the horizon stays level, the cropped border hatched."></td>
+<td width="50%" valign="top">
+
+**A camera on the IMU.** From the attitude, the mount and a time offset, the IMU predicts where the true horizon
+lands in each frame, and a rotation-only warp holds the view level: electronic stabilisation. Trim until the line
+sits on the horizon through fast motion and you have the camera–IMU rotation and time offset, exported in Kalibr's
+layout. Synthetic camera or your webcam; frames never leave the page.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+**Magnetometer calibration, done here.** Turn the sensor through every orientation, fit an ellipsoid, and watch
+the distorted cloud close onto a sphere: hard and soft iron, with the |B| spread before and after as the check.
+Apply it to the stream (before fusion, recording and ROS 2), keep it across restarts with `--magcal`, or take a C
+header to your firmware.
+
+</td>
+<td width="50%"><img src="docs/media/magfit.webp" alt="Magnetometer samples on three projection planes, first off-centre and squashed, then snapping onto the reference circle once the ellipsoid fit is previewed."></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/media/noise.webp" alt="Allan deviation plots for the gyro and accelerometer, X, Y and Z, with dashed white-noise, bias-instability and random-walk asymptotes."></td>
+<td width="50%" valign="top">
+
+**Noise Lab.** Leave the sensor still and record. The Allan deviation splits its noise into white noise, bias
+instability and bias random walk for every axis (IEEE 952), and the capture ends in a Kalibr `imu.yaml`: the noise
+numbers a visual-inertial estimator needs, measured on your unit instead of copied from a datasheet.
+
+</td>
+</tr>
+</table>
+
 Also: barometric height (zero it, enter your QNH, watch the noise live), health decoded from each device's status
-words, magnetometer coverage plots for checking a calibration, the device's identity, configuration and
-capabilities, record and replay, and a ROS 2 publisher.
+words, the device's identity, configuration and capabilities, record and replay, and a ROS 2 publisher.
 
 <table>
 <tr>
@@ -75,6 +121,19 @@ capabilities, record and replay, and a ROS 2 publisher.
 <td align="center"><sub>The device</sub></td>
 </tr>
 </table>
+
+## From the bench to a camera–IMU system
+
+The analysis panels follow the order an integration needs, and each one ends in something a robot can use:
+
+1. **Vibration.** Mount the IMU where it will run and run the machine. Peaks near the camera's exposure time or
+   the estimator's rate need isolation or a notch before anything else is worth tuning.
+2. **Noise Lab.** On a still bench, record 15 minutes or more. The `imu.yaml` holds the measured noise densities
+   and random walks that Kalibr, OpenVINS, VINS-Fusion and ORB-SLAM3 ask for.
+3. **Camera.** Hold camera and IMU rigidly together, trim the overlay onto a real horizon, and raise the time
+   offset until it stops lagging. The `camchain-imucam.yaml` is a starting rotation and time shift for Kalibr's
+   camera–IMU calibration, or enough on its own for horizon overlays and stabilisation.
+4. **Magnetometer.** In the installed position, tumble, fit and apply, so heading has a north.
 
 ## Supported sensors
 
@@ -102,8 +161,8 @@ git clone --recursive https://github.com/Kronbii/imu-bench.git && cd imu-bench
 ./imu-bench ros2 --topic /imu/data # after sourcing ROS 2
 ```
 
-Every driver takes the same extras: `--record run.ndjson`, `--fusion on|off|auto`, `--ros2-publish`, `--host 0.0.0.0`,
-`--no-web`. `./imu-bench <driver> -h` lists the rest. Only the dashboard build needs Node; the server is Python 3.8+
+Every driver takes the same extras: `--record run.ndjson`, `--fusion on|off|auto`, `--ros2-publish`, `--magcal cal.json`,
+`--host 0.0.0.0`, `--no-web`. `./imu-bench <driver> -h` lists the rest. Only the dashboard build needs Node; the server is Python 3.8+
 with no dependencies (pymavlink for MAVLink, a sourced ROS 2 for ROS 2).
 
 ## How it fits together
@@ -171,7 +230,7 @@ adds a `/dev/imx5` link. Build the dashboard on any machine and copy `web/dist/`
 ```
 imubench/   the server: drivers, protocol, fusion, hub, HTTP, ROS 2       imu-bench   launcher, no install needed
 bridge/     C++ bridge on the Inertial Sense SDK                          sdk/        Inertial Sense SDK 2.7.1 (submodule)
-web/        the dashboard (React, three.js), and the in-browser demo      tools/      cltool and EvalTool launchers
+web/        the dashboard (React, three.js, WebGL), its maths, the demo   tools/      cltool and EvalTool launchers
 docs/       protocol, IMX-5 guide, media                                   examples/   Arduino MPU-6050 sketch, UDP sender
 tests/      protocol, fusion, parsing, IMX and MAVLink decoding           scripts/    setup, udev rule
 ```
@@ -179,11 +238,13 @@ tests/      protocol, fusion, parsing, IMX and MAVLink decoding           script
 ## Development
 
 ```bash
-python3 -m unittest discover -s tests   # 19 tests: maths, fusion accuracy, parsers, IMX and MAVLink decoding
+python3 -m unittest discover -s tests   # 20 tests: maths, fusion accuracy, parsers, IMX and MAVLink decoding
+cd web && npm test                      # 12 tests: spectra, Allan deviation, ellipsoid fit, camera geometry
 cd web && npm run dev                   # dashboard with hot reload on :5173, against a running ./imu-bench
 ```
 
-CI runs the tests on Python 3.8 and 3.12, builds the dashboard, and compiles the SDK and bridge. Every push to
+CI runs the Python tests on 3.8 and 3.12 and the dashboard's maths tests, builds the dashboard, and compiles the
+SDK and bridge. Every push to
 `main` redeploys the [live demo](https://kronbii.github.io/imu-bench/).
 
 The dashboard's look follows [ramikronbi.com](https://ramikronbi.com). MIT licensed; the Inertial Sense SDK is MIT

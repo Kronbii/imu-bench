@@ -6,6 +6,7 @@ consistently, so every readout in the dashboard agrees with the others.
   --emulate imx    an IMX-5 in a RUG-3, with the IMX panels populated (default)
   --emulate ahrs   a generic sensor that reports its own attitude
   --emulate raw    gyro, accelerometer and magnetometer only: fusion supplies attitude
+  --mag-iron       distort the magnetometer with hard and soft iron, to try the dashboard's fit
 """
 
 import math
@@ -19,6 +20,9 @@ G = 9.80665
 D2R = math.pi / 180
 MAG_INC = 48 * D2R  # a mid-latitude field
 FIELD = [math.cos(MAG_INC), 0.0, math.sin(MAG_INC)]
+# --mag-iron: a magnetometer as mounted, before calibration (the hosted demo uses the same)
+SOFT_IRON = [1.24, 0.1, -0.05, 0.1, 0.84, 0.06, -0.05, 0.06, 1.04]
+HARD_IRON = [0.38, -0.26, 0.14]
 
 
 def attitude(t):
@@ -59,6 +63,7 @@ class SimDriver(Driver):
         p.add_argument("--emulate", choices=sorted(PROFILES), default="imx")
         p.add_argument("--form", choices=["rug3", "board", "quad"], help="3D model to show (default: the profile's)")
         p.add_argument("--rate", type=float, default=143.0, help="attitude/IMU rate, Hz")
+        p.add_argument("--mag-iron", action="store_true", help="add hard and soft iron to the magnetometer")
 
     def __init__(self, emit, args):
         super().__init__(emit, args)
@@ -110,7 +115,10 @@ class SimDriver(Driver):
                 acc = [v + rnd(0, 0.02) for v in rotate(qconj(q), [0.0, 0.0, -G])]
                 self.emit({"t": "imu", "time": round(t, 4), "gyro": pqr, "acc": acc})
             if k % 3 == 0:
-                mag = [v + rnd(0, 0.004) for v in rotate(qconj(q), FIELD)]
+                mag = rotate(qconj(q), FIELD)
+                if a.mag_iron:
+                    mag = [sum(SOFT_IRON[3 * i + j] * mag[j] for j in range(3)) + HARD_IRON[i] for i in range(3)]
+                mag = [v + rnd(0, 0.004) for v in mag]
                 self.emit({"t": "mag", "time": round(t, 4), "mag": mag, "unit": "norm"})
                 if a.emulate != "raw":
                     self.emit({"t": "baro", "time": round(t, 4), "pressure": 100.67 + rnd(0, 0.002),

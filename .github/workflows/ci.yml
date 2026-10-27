@@ -37,6 +37,8 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci
         working-directory: web
+      - run: npm test # spectrum, Allan deviation, ellipsoid fit, camera geometry
+        working-directory: web
       - run: npm run build # tsc --noEmit, then vite build
         working-directory: web
 

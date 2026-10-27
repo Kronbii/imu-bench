@@ -10,7 +10,7 @@ from pathlib import Path
 DIST = Path(__file__).resolve().parents[1] / "web" / "dist"
 
 
-def make_handler(hub, driver):
+def make_handler(hub, driver, pipeline=None):
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
 
@@ -27,6 +27,8 @@ def make_handler(hub, driver):
             return self._static(path)
 
         def do_POST(self):
+            if self.path == "/api/magcal" and pipeline:
+                return self._magcal()
             if self.path != "/api/cmd":
                 return self._send(404, b"not found")
             try:
@@ -38,6 +40,23 @@ def make_handler(hub, driver):
                 return self._send(400, b"not a command this driver accepts")
             ok = driver.command(cmd)
             return self._send(200 if ok else 503, b"ok" if ok else b"device not connected")
+
+        def do_DELETE(self):
+            if self.path == "/api/magcal" and pipeline:
+                pipeline.set_magcal(None)
+                return self._send(200, b"ok")
+            return self._send(404, b"not found")
+
+        def _magcal(self):
+            """POST {center: [3], matrix: [9]}: correct the magnetometer from now on (before fusion and recording)."""
+            try:
+                n = int(self.headers.get("Content-Length", 0))
+                pipeline.set_magcal(json.loads(self.rfile.read(n) or b"{}"))
+            except (ValueError, AttributeError, TypeError) as e:
+                return self._send(400, f"bad calibration: {e}".encode())
+            except OSError as e:
+                return self._send(500, f"applied, but not saved: {e}".encode())
+            return self._send(200, b"ok")
 
         def _send(self, code, body, ctype="text/plain"):
             self.send_response(code)
@@ -101,7 +120,7 @@ def make_handler(hub, driver):
     return Handler
 
 
-def serve(hub, driver, host, port):
-    server = ThreadingHTTPServer((host, port), make_handler(hub, driver))
+def serve(hub, driver, host, port, pipeline=None):
+    server = ThreadingHTTPServer((host, port), make_handler(hub, driver, pipeline))
     server.daemon_threads = True
     return server

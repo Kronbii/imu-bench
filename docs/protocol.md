@@ -29,10 +29,11 @@ driver and publisher convert at that boundary and nowhere else.
 | `src` | `mode` (`device`, `sim`, `replay`, `demo`), `driver`, `detail` | Where the stream comes from. |
 | `att` | `time`, `q[4]`, `euler[3]`, `source` (`sensor`, `fusion`), optional `sigma[3]` | `sigma`: 1σ roll, pitch, yaw in rad, when the device estimates it. |
 | `imu` | `time`, `gyro[3]` rad/s, `acc[3]` m/s² | Body frame. |
-| `mag` | `time`, `mag[3]`, `unit` (`norm`, `uT`, `gauss`) | `norm` is ≈ 1 for the local field once calibrated. |
+| `mag` | `time`, `mag[3]`, `unit` (`norm`, `uT`, `gauss`), optional `cal` | `norm` is ≈ 1 for the local field once calibrated. `cal: true` when the bench applied a hard/soft-iron correction. |
 | `baro` | `time`, `pressure` kPa, optional `alt` m, `temp` °C | |
 | `status` | `mode`, `level`, optional `detail`, `temp`, `flags[]`, `x{}` | `level`: `good`, `warning`, `serious`, `critical`, `neutral`. `flags`: `{label, level}`. `x`: device-specific raw words. |
 | `log` | `msg` | Shown in the dashboard's event list. |
+| `magcal` | `applied`, optional `center[3]`, `matrix[9]` | The hard/soft-iron correction in force: `m_cal = W (m − c)`, `W` row-major. Sent when it changes. |
 | `imx.*` | SDK field names | Inertial Sense extras for the IMX panels: `imx.dev`, `imx.cfg`, `imx.sys`, `imx.sigma`, `imx.inl2`, `imx.magobs`, `imx.magcal`. |
 
 ### Capabilities
@@ -56,8 +57,10 @@ Inertial Sense panels. When fusion runs, `attitude` is added and `fusion` names 
 
 | | |
 |---|---|
-| `GET /stream` | Server-Sent Events; each event is a JSON array of messages. A late joiner first gets the latest `src`, `link`, `device`, `status` and `imx.*`. |
+| `GET /stream` | Server-Sent Events; each event is a JSON array of messages. A late joiner first gets the latest `src`, `link`, `device`, `status`, `magcal` and `imx.*`. |
 | `POST /api/cmd` | `{"cmd": "magrecal multi"}`. Only commands the running driver lists are accepted. |
+| `POST /api/magcal` | `{"center": [3], "matrix": [9]}`: correct the magnetometer from now on, before fusion, recording and ROS 2. Saved to the `--magcal` file when one is given. |
+| `DELETE /api/magcal` | Remove the correction. |
 | `GET /api/info` | `{"driver": ..., "commands": [...]}` |
 
 ## Writing a driver

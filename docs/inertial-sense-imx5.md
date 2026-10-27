@@ -85,7 +85,8 @@ What that means in use:
 ### Noise model for your estimator
 
 The same numbers in the units Kalibr, OpenVINS, VINS-Fusion and similar expect. The bias random walks are **not
-published**; measure them with an Allan variance of a 2–3 h static log from this unit (e.g. `allan_variance_ros`).
+published**; measure them with an Allan variance of a 2–3 h static log from this unit: the dashboard's *Noise Lab*
+records one with `./imu-bench imx --raw-mult 1` and writes the `imu.yaml` (or use `allan_variance_ros`).
 
 ```yaml
 # imu.yaml (Kalibr format). Noise densities from the datasheet; random walks are starting guesses, not specs.
@@ -152,9 +153,9 @@ Pin 2 is the only strobe pin on this connector, so it is one method or the other
 |---|---|---|
 | IMU bias, scale, cross-axis, g-sensitivity, −40…85 °C temperature compensation | **Factory** | Nothing to do. |
 | Gyro bias that remains | the filter, continuously | Faster when still. `DID_SYS_CMD` = 5 (zero motion) tells it the unit is still for 2 s. A VIO estimates its own biases anyway. |
-| Magnetometer hard and soft iron | **you**, in the final mounting | Only needed for heading. Multi-axis: `DID_MAG_CAL.state` = 1, then rotate through all orientations until done (dashboard *Calibrate*, or `cltool -magRecal1`). |
+| Magnetometer hard and soft iron | **you**, in the final mounting | Only needed for heading. Multi-axis: `DID_MAG_CAL.state` = 1, then rotate through all orientations until done (dashboard *Calibrate*, or `cltool -magRecal1`). The dashboard's ellipsoid fit checks the result. |
 | Magnetic declination | **you** | `magDeclination` (rad) is 0 now, so heading is magnetic. |
-| Camera–IMU extrinsics and time offset | **you** | Kalibr (camera–IMU) with the §3 noise model, after the Allan variance. |
+| Camera–IMU extrinsics and time offset | **you** | Kalibr (camera–IMU) with the §3 noise model, after the Allan variance. The dashboard's *Camera* panel gives a starting rotation and time shift by matching the IMU's horizon to the image. |
 | Mounting misalignment | optional | Prefer the calibrated extrinsic over `insRotation`. |
 
 ## 7. Interfaces

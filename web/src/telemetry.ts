@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react'
 
 import { DEMO, startDemo } from './demo'
 import type { Level } from './decode'
+import type { MagCal } from './lib/ellipsoid'
 
 export type Vec3 = [number, number, number]
 export type Quat = [number, number, number, number] // w, x, y, z
@@ -169,6 +170,7 @@ export const store = {
     acc: new Ring(12000, 3), // m/s²
     mag: new Ring(4000, 3),
     height: new Ring(4000, 2), // raw and smoothed height above the zero (m)
+    quat: new Ring(1500, 4), // attitude quaternions, for looking up the attitude at a past instant (camera sync)
   },
   /** last minute of magnetometer vectors, for the coverage plots */
   magCloud: new Ring(3000, 3),
@@ -178,6 +180,8 @@ export const store = {
   logs: [] as { at: number; msg: string }[],
   /** subtracted from yaw for display; set by "Zero yaw" */
   yawOffset: 0,
+  /** the hard/soft-iron correction the server (or demo) applies to the magnetometer, if any */
+  magcal: null as null | Pick<MagCal, 'center' | 'matrix'>,
 }
 
 export const has = (cap: string) => !!store.device?.caps?.includes(cap)
@@ -247,12 +251,14 @@ export function ingest(m: Record<string, any>) {
       a.source = m.source ?? 'sensor'
       if (m.sigma) a.sigma = m.sigma
       store.series.tilt.push(m.time, a.euler[0] * RAD, a.euler[1] * RAD, a.euler[2] * RAD)
+      store.series.quat.push(m.time, m.q[0], m.q[1], m.q[2], m.q[3])
       break
     }
     case 'imu':
       store.imu = m as typeof store.imu
       store.series.gyro.push(m.time, m.gyro[0] * RAD, m.gyro[1] * RAD, m.gyro[2] * RAD)
       store.series.acc.push(m.time, m.acc[0], m.acc[1], m.acc[2])
+      for (const fn of imuTaps) fn(m as typeof store.imu)
       break
     case 'mag':
       store.mag = { time: m.time, mag: m.mag, unit: m.unit ?? 'norm' }
@@ -292,6 +298,10 @@ export function ingest(m: Record<string, any>) {
     case 'src':
       store.src = m as typeof store.src
       break
+    case 'magcal':
+      store.magcal = m.applied ? { center: m.center, matrix: m.matrix } : null
+      store.magCloud.clear() // the old cloud was in the other units
+      break
     case 'log':
       log(m.msg)
       break
@@ -304,8 +314,16 @@ export function ingest(m: Record<string, any>) {
   }
 }
 
+/** Every IMU sample, in SI units, as it arrives (the Noise Lab records from here). */
+type ImuFn = (m: { time: number; gyro: Vec3; acc: Vec3 }) => void
+const imuTaps = new Set<ImuFn>()
+export function onImu(fn: ImuFn) {
+  imuTaps.add(fn)
+  return () => void imuTaps.delete(fn)
+}
+
 let started = false
-let sendLocal: ((cmd: string) => void) | null = null
+let local: ReturnType<typeof startDemo> | null = null
 export function connect() {
   if (started) return
   started = true
@@ -320,7 +338,7 @@ export function connect() {
   }, 2000)
   if (DEMO) {
     store.connected = true
-    sendLocal = startDemo(ingest)
+    local = startDemo(ingest)
     return
   }
   const es = new EventSource('stream')
@@ -368,8 +386,41 @@ export function linkState(): { state: 'live' | 'sim' | 'down'; label: string; wh
   return { state: 'down', label, where: why === 'searching' ? 'plug in the sensor' : where }
 }
 
+/** Correct the magnetometer from now on, before fusion and recording (null removes the correction). */
+export async function setMagCal(cal: Pick<MagCal, 'center' | 'matrix'> | null) {
+  if (local) return local.magcal(cal)
+  const r = await fetch('api/magcal', {
+    method: cal ? 'POST' : 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: cal ? JSON.stringify({ center: cal.center, matrix: cal.matrix }) : undefined,
+  })
+  if (!r.ok) throw new Error(await r.text())
+}
+
+/** The attitude quaternion at device time t (s), interpolated; null outside the last few seconds. */
+export function quatAt(t: number): Quat | null {
+  const r = store.series.quat
+  if (r.size < 2 || t > r.lastT + 0.05 || t < r.t[r.at(0)]) return null
+  let lo = 0
+  let hi = r.size - 1
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1
+    if (r.t[r.at(mid)] <= t) lo = mid
+    else hi = mid
+  }
+  const a = r.at(lo)
+  const b = r.at(hi)
+  const u = Math.max(0, Math.min(1, (t - r.t[a]) / (r.t[b] - r.t[a] || 1)))
+  let dot = 0
+  for (let c = 0; c < 4; c++) dot += r.ch[c][a] * r.ch[c][b]
+  const sb = dot < 0 ? -1 : 1
+  const q = [0, 1, 2, 3].map((c) => r.ch[c][a] + u * (sb * r.ch[c][b] - r.ch[c][a]))
+  const n = Math.hypot(...q)
+  return q.map((c) => c / n) as Quat
+}
+
 export async function sendCommand(cmd: string) {
-  if (sendLocal) return sendLocal(cmd)
+  if (local) return local.command(cmd)
   const r = await fetch('api/cmd', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

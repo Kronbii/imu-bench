@@ -40,7 +40,7 @@ export function Device() {
   return (
     <section id="device" className="section">
       <SectionHead
-        n="05"
+        n="08"
         label="Device"
         title={
           <>

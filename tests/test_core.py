@@ -165,5 +165,39 @@ class ImxMapping(unittest.TestCase):
         self.assertEqual(m.map({"t": "imu", "time": 2, "pqr": [0, 0, 0], "acc": [0, 0, -9.8]}), [])
 
 
+class MagCorrection(unittest.TestCase):
+    def test_pipeline_applies_saves_and_clears(self):
+        import json
+        import tempfile
+
+        from imubench.__main__ import Pipeline
+        from imubench.drivers.sim import HARD_IRON, SOFT_IRON
+
+        out = []
+        hub = types.SimpleNamespace(publish=out.append)
+        path = Path(tempfile.mkdtemp()) / "magcal.json"
+        p = Pipeline(hub, None, str(path))
+        # the inverse of the simulator's iron undoes it exactly
+        a, b, c, d, e, f, g, h, i = SOFT_IRON
+        det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g)
+        inv = [(e * i - f * h) / det, (c * h - b * i) / det, (b * f - c * e) / det,
+               (f * g - d * i) / det, (a * i - c * g) / det, (c * d - a * f) / det,
+               (d * h - e * g) / det, (b * g - a * h) / det, (a * e - b * d) / det]
+        p.set_magcal({"center": HARD_IRON, "matrix": inv})
+        self.assertTrue(out[-1]["applied"])
+        self.assertEqual(json.loads(path.read_text())["center"], HARD_IRON)
+        truth = [0.4, -0.3, 0.86]
+        raw = [sum(SOFT_IRON[3 * r + k] * truth[k] for k in range(3)) + HARD_IRON[r] for r in range(3)]
+        p({"t": "mag", "time": 1.0, "mag": raw, "unit": "norm"})
+        self.assertTrue(all(abs(u - v) < 1e-9 for u, v in zip(out[-1]["mag"], truth)))
+        # a new process picks it up from the file
+        self.assertIsNotNone(Pipeline(types.SimpleNamespace(publish=out.append), None, str(path)).magcal)
+        with self.assertRaises(ValueError):
+            p.set_magcal({"center": [0, 0], "matrix": [1] * 9})
+        p.set_magcal(None)
+        p({"t": "mag", "time": 2.0, "mag": raw, "unit": "norm"})
+        self.assertEqual(out[-1]["mag"], raw)
+
+
 if __name__ == "__main__":
     unittest.main()

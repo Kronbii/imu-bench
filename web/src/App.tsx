@@ -1,8 +1,11 @@
 import { Calibration } from './components/Calibration'
+import { Camera } from './components/Camera'
 import { Device } from './components/Device'
 import { Health } from './components/Health'
 import { Hero } from './components/Hero'
+import { NoiseLab } from './components/NoiseLab'
 import { Signals } from './components/Signals'
+import { Vibration } from './components/Vibration'
 import { linkState, store, useTick } from './telemetry'
 
 function LinkPill() {
@@ -40,8 +43,11 @@ export function App() {
         <nav className="nav" aria-label="Sections">
           <a href="#attitude">Attitude</a>
           <a href="#signals">Signals</a>
+          <a href="#vibration">Vibration</a>
+          <a href="#camera">Camera</a>
           <a href="#health">Health</a>
           <a href="#calibrate">Calibrate</a>
+          <a href="#noise">Noise</a>
           <a href="#device">Device</a>
         </nav>
         <LinkPill />
@@ -49,8 +55,11 @@ export function App() {
       <main>
         <Hero />
         <Signals />
+        <Vibration />
+        <Camera />
         <Health />
         <Calibration />
+        <NoiseLab />
         <Device />
       </main>
       <footer className="footer">

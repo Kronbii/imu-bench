@@ -13,6 +13,7 @@ Common options go after the driver: --http, --host, --record, --fusion,
 """
 
 import argparse
+import json
 import signal
 import sys
 import threading
@@ -34,6 +35,8 @@ def common_args():
                    help="Madgwick attitude from gyro+accel; auto = only when the device reports none")
     g.add_argument("--beta", type=float, default=0.05, help="Madgwick gain (default 0.05)")
     g.add_argument("--no-fusion-mag", action="store_true", help="keep the magnetometer out of fused heading")
+    g.add_argument("--magcal", metavar="FILE", help="hard/soft-iron correction (JSON from the dashboard's fit); "
+                   "applied to the magnetometer before fusion, and saved here when the dashboard applies a new one")
     g.add_argument("--ros2-publish", action="store_true", help="also publish sensor_msgs/Imu, MagneticField, FluidPressure")
     g.add_argument("--ros2-prefix", default="/imu", help="topic prefix (default /imu: /imu/data, /imu/mag, /imu/pressure)")
     g.add_argument("--ros2-frame", default="imu_link", help="header frame_id")
@@ -52,17 +55,42 @@ def build_parser():
 
 
 class Pipeline:
-    """Driver output -> (fusion) -> hub, with the device's caps kept truthful."""
+    """Driver output -> (magnetometer correction) -> (fusion) -> hub, with the device's caps kept truthful."""
 
-    def __init__(self, hub, fusion):
+    def __init__(self, hub, fusion, magcal_file=None):
         self.hub = hub
         self.fusion = fusion
         self.sensor_att = 0.0
+        self.magcal = None  # {"center": [3], "matrix": [9] row-major}: m_cal = W (m - c)
+        self.magcal_file = magcal_file
+        if magcal_file:
+            try:
+                with open(magcal_file) as f:
+                    self.set_magcal(json.load(f), save=False)
+            except FileNotFoundError:
+                pass
+
+    def set_magcal(self, cal, save=True):
+        """Install (or with None, remove) a hard/soft-iron correction. Raises ValueError on a malformed one."""
+        if cal is not None:
+            c, w = cal.get("center"), cal.get("matrix")
+            if not (isinstance(c, list) and len(c) == 3 and isinstance(w, list) and len(w) == 9):
+                raise ValueError("want center[3] and matrix[9]")
+            cal = {"center": [float(v) for v in c], "matrix": [float(v) for v in w]}
+        self.magcal = cal
+        if save and self.magcal_file:
+            with open(self.magcal_file, "w") as f:
+                json.dump(cal, f, indent=2)
+        self.hub.publish({"t": "magcal", "applied": cal is not None, **(cal or {})})
 
     def __call__(self, msg):
         kind = msg.get("t")
         if kind == "att" and msg.get("source") == "sensor":
             self.sensor_att = time.monotonic()
+        if kind == "mag" and self.magcal:
+            c, w = self.magcal["center"], self.magcal["matrix"]
+            d = [msg["mag"][i] - c[i] for i in range(3)]
+            msg = dict(msg, mag=[w[3 * i] * d[0] + w[3 * i + 1] * d[1] + w[3 * i + 2] * d[2] for i in range(3)], cal=True)
         if self.fusion and kind == "device":
             caps = sorted(set(msg.get("caps") or []) | {"attitude"})
             msg = dict(msg, caps=caps, fusion="madgwick")
@@ -78,7 +106,7 @@ def main(argv=None):
     cls = DRIVERS[args.driver]
 
     fusion = None
-    pipeline = Pipeline(hub, None)
+    pipeline = Pipeline(hub, None, args.magcal)
     driver = cls(pipeline, args)
     if hasattr(driver, "load"):
         driver.load()  # replay learns from the file whether it carries attitude
@@ -100,7 +128,7 @@ def main(argv=None):
     server = None
     if not args.no_web:
         from .web import serve
-        server = serve(hub, driver, args.host, args.http)
+        server = serve(hub, driver, args.host, args.http, pipeline)
         threading.Thread(target=server.serve_forever, daemon=True).start()
         host = "127.0.0.1" if args.host in ("0.0.0.0", "") else args.host
         print(f"imu-bench {args.driver}: dashboard on http://{host}:{args.http}"
