@@ -1487,6 +1487,14 @@ em {
 }
 
 /* ---------- responsive ---------- */
+@media (max-width: 1240px) {
+  .nav {
+    display: none;
+  }
+  .linkpill {
+    margin-left: auto;
+  }
+}
 @media (max-width: 1100px) {
   .hero {
     grid-template-columns: 1fr;
@@ -1503,12 +1511,6 @@ em {
   }
 }
 @media (max-width: 900px) {
-  .nav {
-    display: none;
-  }
-  .linkpill {
-    margin-left: auto;
-  }
   .grid-2,
   .grid-3 {
     grid-template-columns: 1fr;
