@@ -7,7 +7,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-DIST = Path(__file__).resolve().parents[1] / "web" / "dist"
+DIST = Path(__file__).resolve().parents[2] / "web" / "dist"
 
 
 def make_handler(hub, driver, pipeline=None):

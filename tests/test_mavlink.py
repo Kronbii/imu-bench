@@ -5,14 +5,14 @@ import types
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 try:
     from pymavlink import mavutil
 except ImportError:
     mavutil = None
 
-from imubench.drivers.mavlink import MavlinkDriver  # noqa: E402
+from imuctl.drivers.mavlink import MavlinkDriver  # noqa: E402
 
 
 @unittest.skipIf(mavutil is None, "pymavlink not installed")

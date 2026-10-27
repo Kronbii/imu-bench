@@ -7,13 +7,13 @@ import types
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from imubench.drivers.imx import ImxMapper  # noqa: E402
-from imubench.drivers.lines import LineParser  # noqa: E402
-from imubench.drivers.sim import FIELD, attitude, body_rates  # noqa: E402
-from imubench.fusion import Madgwick, tilt_from_acc  # noqa: E402
-from imubench.protocol import (  # noqa: E402
+from imuctl.drivers.imx import ImxMapper  # noqa: E402
+from imuctl.drivers.lines import LineParser  # noqa: E402
+from imuctl.drivers.sim import FIELD, attitude, body_rates  # noqa: E402
+from imuctl.fusion import Madgwick, tilt_from_acc  # noqa: E402
+from imuctl.protocol import (  # noqa: E402
     axis_map,
     dumps,
     euler_to_quat,
@@ -133,7 +133,7 @@ class Lines(unittest.TestCase):
         att = LineParser(line_args(frame="flu")).parse('{"q": %s}' % list(q_ros))[0]
         self.assertLess(angle_between(att["q"], euler_to_quat(0.1, 0.2, 0.3)), 1e-9)
 
-    def test_bench_messages_pass_through(self):
+    def test_imuctl_messages_pass_through(self):
         m = LineParser(line_args()).parse('{"t": "att", "time": 3, "q": [1, 0, 0, 0]}')[0]
         self.assertEqual(m["q"], [1, 0, 0, 0])
 
@@ -170,8 +170,8 @@ class MagCorrection(unittest.TestCase):
         import json
         import tempfile
 
-        from imubench.__main__ import Pipeline
-        from imubench.drivers.sim import HARD_IRON, SOFT_IRON
+        from imuctl.__main__ import Pipeline
+        from imuctl.drivers.sim import HARD_IRON, SOFT_IRON
 
         out = []
         hub = types.SimpleNamespace(publish=out.append)

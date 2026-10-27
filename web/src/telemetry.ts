@@ -1,5 +1,5 @@
 /*
- * The live stream, outside React. The server pushes batches of bench
+ * The live stream, outside React. The server pushes batches of imuctl
  * messages (docs/protocol.md: device, att, imu, mag, baro, status, link,
  * plus imx.* extras from Inertial Sense units) over Server-Sent Events;
  * they land in `store`. Fast consumers (3D, charts, readouts) read it every
@@ -193,7 +193,7 @@ export const baroAltitude = (kPa: number, qnh = ISA_QNH) => 44330.8 * (1 - Math.
 
 function loadQnh() {
   try {
-    const v = parseFloat(localStorage.getItem('imu-bench.qnh') ?? '')
+    const v = parseFloat(localStorage.getItem('imuctl.qnh') ?? '')
     return v > 800 && v < 1100 ? v : ISA_QNH
   } catch {
     return ISA_QNH
@@ -203,7 +203,7 @@ function loadQnh() {
 export function setQnh(hPa: number) {
   store.height.qnh = hPa
   try {
-    localStorage.setItem('imu-bench.qnh', String(hPa))
+    localStorage.setItem('imuctl.qnh', String(hPa))
   } catch {
     /* private mode: it just won't be remembered */
   }

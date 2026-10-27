@@ -8,7 +8,7 @@ import { download, stamp } from './plot'
  * Hard- and soft-iron calibration for any magnetometer, done here: turn the
  * sensor through every orientation, fit an ellipsoid to the last minute of
  * field vectors, preview the correction on the plots above, then have the
- * bench apply it to the stream (before fusion, recording and ROS 2) or take
+ * imuctl apply it to the stream (before fusion, recording and ROS 2) or take
  * the numbers to your firmware.
  */
 
@@ -49,7 +49,7 @@ function cHeader(cal: MagCal) {
   const W = cal.matrix
   const c = (v: number) => `${v.toFixed(6)}f`
   return [
-    '// Magnetometer hard- and soft-iron calibration, from imu-bench (ellipsoid fit).',
+    '// Magnetometer hard- and soft-iron calibration, from imuctl (ellipsoid fit).',
     `// ${cal.samples} samples; |B| spread ${(cal.spreadBefore * 100).toFixed(1)} % before, ${(cal.spreadAfter * 100).toFixed(2)} % after.`,
     '// Apply to every raw sample, in the sensor frame:  m_cal = MAG_SOFT_IRON * (m_raw - MAG_HARD_IRON)',
     `static const float MAG_HARD_IRON[3] = {${cal.center.map(c).join(', ')}};`,
@@ -168,7 +168,7 @@ export function MagFit({ preview }: { preview: React.RefObject<MagCal | null> })
         {msg && <p className="note" data-level="warning">{msg}</p>}
         {applied && (
           <p className="note" data-level="good">
-            Applied: the bench corrects every magnetometer sample before fusion, recording and ROS 2. The plots above now
+            Applied: imuctl corrects every magnetometer sample before fusion, recording and ROS 2. The plots above now
             show the corrected field; it should hug the circle from every side.
           </p>
         )}
@@ -221,8 +221,8 @@ export function MagFit({ preview }: { preview: React.RefObject<MagCal | null> })
             </div>
             <p className="note">
               {has('panel:imx')
-                ? 'The IMX computes heading on board with its own calibration (the procedure above); this corrects the magnetometer stream the bench records and publishes.'
-                : 'Sensors without on-board fusion get it in the bench’s Madgwick heading too. Or take the C header to your firmware.'}{' '}
+                ? 'The IMX computes heading on board with its own calibration (the procedure above); this corrects the magnetometer stream imuctl records and publishes.'
+                : 'Sensors without on-board fusion get it in imuctl’s Madgwick heading too. Or take the C header to your firmware.'}{' '}
               With <code>--magcal FILE</code> the server keeps it across restarts.
             </p>
           </>

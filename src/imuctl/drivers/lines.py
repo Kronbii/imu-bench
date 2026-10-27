@@ -2,7 +2,7 @@
 Any sensor that can print a line: an Arduino with an MPU-6050, an ESP32 with
 a BNO055, a phone app, a script. JSON or CSV, over serial, UDP, TCP or stdin.
 
-JSON lines may be bench messages ({"t": "imu", ...}) or shorthand:
+JSON lines may be imuctl messages ({"t": "imu", ...}) or shorthand:
 
   {"gyro": [gx, gy, gz], "acc": [ax, ay, az], "mag": [mx, my, mz], "time": 12.345}
   {"q": [w, x, y, z]}         {"euler": [roll, pitch, yaw]}
@@ -57,7 +57,7 @@ class LineParser:
         return self.axes(v)
 
     def parse(self, line):
-        """One line in, a list of bench messages out (possibly empty)."""
+        """One line in, a list of imuctl messages out (possibly empty)."""
         if line.startswith("{"):
             try:
                 obj = json.loads(line)
@@ -90,7 +90,7 @@ class LineParser:
 
     def from_json(self, obj):
         if obj.get("t") in ("imu", "att", "mag", "baro", "status", "device", "log"):
-            msg = dict(obj)  # already a bench message: SI, FRD/NED
+            msg = dict(obj)  # already a imuctl message: SI, FRD/NED
             if msg["t"] in ("imu", "att", "mag", "baro") and "time" not in msg:
                 msg["time"] = time.monotonic() - self.t0
             return [msg]

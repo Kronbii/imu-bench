@@ -53,7 +53,7 @@ class Hub:
 
 
 class Recorder:
-    """Appends every message to an NDJSON file that `imu-bench replay` can play back."""
+    """Appends every message to an NDJSON file that `imuctl replay` can play back."""
 
     SKIP = {"log"}
 

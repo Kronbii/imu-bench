@@ -1,10 +1,10 @@
-// MPU-6050 to imu-bench, no libraries: reads the sensor over I2C and prints
+// MPU-6050 to imuctl, no libraries: reads the sensor over I2C and prints
 // one JSON line per sample at 200 Hz, already in SI units.
 //
-//   ./imu-bench lines /dev/ttyUSB0@115200 --name MPU-6050 --axes x,-y,-z
+//   ./imuctl lines /dev/ttyUSB0@115200 --name MPU-6050 --axes x,-y,-z
 //
 // The MPU-6050's axes are printed on its board (x forward, y left, z up on
-// most GY-521 breakouts); --axes x,-y,-z turns that into imu-bench's FRD.
+// most GY-521 breakouts); --axes x,-y,-z turns that into imuctl's FRD.
 // Wiring: VCC 3.3-5 V, GND, SDA, SCL (A4/A5 on an Uno, 21/22 on an ESP32).
 
 #include <Wire.h>
@@ -51,7 +51,7 @@ void loop() {
   next16();  // temperature
   float gx = next16() / GYRO_LSB * DEG2RAD, gy = next16() / GYRO_LSB * DEG2RAD, gz = next16() / GYRO_LSB * DEG2RAD;
 
-  // The MPU reports +g on z when flat (it measures "up"); imu-bench's FRD wants -g on z,
+  // The MPU reports +g on z when flat (it measures "up"); imuctl's FRD wants -g on z,
   // which --axes x,-y,-z also takes care of.
   Serial.print("{\"time\":");
   Serial.print(micros() / 1e6, 4);

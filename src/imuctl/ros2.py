@@ -1,11 +1,11 @@
 """
 ROS 2, both ways (needs a sourced ROS 2, e.g. `source /opt/ros/jazzy/setup.bash`).
 
-  imu-bench ros2 --topic /imu/data         any sensor_msgs/Imu topic in
-  imu-bench <driver> --ros2-publish        any driver out, as sensor_msgs/Imu,
+  imuctl ros2 --topic /imu/data         any sensor_msgs/Imu topic in
+  imuctl <driver> --ros2-publish        any driver out, as sensor_msgs/Imu,
                                            MagneticField and FluidPressure
 
-ROS follows REP-103: FLU body, ENU world. The bench is FRD / NED, so vectors
+ROS follows REP-103: FLU body, ENU world. imuctl is FRD / NED, so vectors
 and orientation are converted at this boundary and nowhere else.
 """
 
@@ -45,7 +45,7 @@ class Ros2Driver(Driver):
         rclpy, Imu, MagneticField, FluidPressure = _rclpy()
         a = self.args
         rclpy.init()
-        node = rclpy.create_node("imu_bench_in")
+        node = rclpy.create_node("imuctl_in")
         self.emit({"t": "src", "mode": "device", "driver": self.name, "detail": a.topic})
         self.emit({"t": "device", "vendor": "ROS 2", "name": a.name, "model": a.topic, "form": "board",
                    "driver": "ros2", "caps": ["imu", "mag", "baro"]})
@@ -80,14 +80,14 @@ class Ros2Driver(Driver):
 
 
 class Ros2Publisher:
-    """A hub tap that republishes the bench stream as standard ROS 2 messages."""
+    """A hub tap that republishes the imuctl stream as standard ROS 2 messages."""
 
     def __init__(self, prefix="/imu", frame_id="imu_link"):
         rclpy, Imu, MagneticField, FluidPressure = _rclpy()
         self.Imu, self.MagneticField, self.FluidPressure = Imu, MagneticField, FluidPressure
         if not rclpy.ok():
             rclpy.init()
-        self.node = rclpy.create_node("imu_bench")
+        self.node = rclpy.create_node("imuctl")
         self.frame_id = frame_id
         self.pub_imu = self.node.create_publisher(Imu, f"{prefix}/data", 50)
         self.pub_mag = self.node.create_publisher(MagneticField, f"{prefix}/mag", 50)

@@ -2,7 +2,7 @@ import threading
 
 
 class Driver:
-    """A sensor source. Subclasses translate one protocol into bench messages."""
+    """A sensor source. Subclasses translate one protocol into imuctl messages."""
 
     name = ""
     help = ""

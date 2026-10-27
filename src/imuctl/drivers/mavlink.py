@@ -3,12 +3,12 @@ MAVLink autopilots: PX4, ArduPilot, and anything else that speaks MAVLink 1/2
 (Betaflight and INAV send a subset). Needs pymavlink (pip install pymavlink;
 pyserial too for serial links).
 
-MAVLink uses the same conventions as the bench (FRD body, NED, quaternion
+MAVLink uses the same conventions as imuctl (FRD body, NED, quaternion
 w-x-y-z body to NED), so attitude and IMU pass through with unit scaling only.
 
-  imu-bench mavlink                      # listen on UDP 14550 (PX4 SITL, a GCS link)
-  imu-bench mavlink /dev/ttyACM0 --baud 115200
-  imu-bench mavlink tcp:127.0.0.1:5760   # ArduPilot SITL
+  imuctl mavlink                      # listen on UDP 14550 (PX4 SITL, a GCS link)
+  imuctl mavlink /dev/ttyACM0 --baud 115200
+  imuctl mavlink tcp:127.0.0.1:5760   # ArduPilot SITL
 """
 
 import math

@@ -1,4 +1,4 @@
-# The imu-bench stream
+# The imuctl stream
 
 Every driver turns its device's protocol into the same small set of messages. The hub, the recorder, the ROS 2
 publisher and the dashboard only ever see these, so a new sensor needs a driver and nothing else.
@@ -29,7 +29,7 @@ driver and publisher convert at that boundary and nowhere else.
 | `src` | `mode` (`device`, `sim`, `replay`, `demo`), `driver`, `detail` | Where the stream comes from. |
 | `att` | `time`, `q[4]`, `euler[3]`, `source` (`sensor`, `fusion`), optional `sigma[3]` | `sigma`: 1σ roll, pitch, yaw in rad, when the device estimates it. |
 | `imu` | `time`, `gyro[3]` rad/s, `acc[3]` m/s² | Body frame. |
-| `mag` | `time`, `mag[3]`, `unit` (`norm`, `uT`, `gauss`), optional `cal` | `norm` is ≈ 1 for the local field once calibrated. `cal: true` when the bench applied a hard/soft-iron correction. |
+| `mag` | `time`, `mag[3]`, `unit` (`norm`, `uT`, `gauss`), optional `cal` | `norm` is ≈ 1 for the local field once calibrated. `cal: true` when imuctl applied a hard/soft-iron correction. |
 | `baro` | `time`, `pressure` kPa, optional `alt` m, `temp` °C | |
 | `status` | `mode`, `level`, optional `detail`, `temp`, `flags[]`, `x{}` | `level`: `good`, `warning`, `serious`, `critical`, `neutral`. `flags`: `{label, level}`. `x`: device-specific raw words. |
 | `log` | `msg` | Shown in the dashboard's event list. |
@@ -65,7 +65,7 @@ Inertial Sense panels. When fusion runs, `attitude` is added and `fusion` names 
 
 ## Writing a driver
 
-A driver is a class in `imubench/drivers/` with a `name`, a `help` line, `add_args(parser)` for its options and a
+A driver is a class in `src/imuctl/drivers/` with a `name`, a `help` line, `add_args(parser)` for its options and a
 `run()` loop that calls `self.emit(message)`; `self.link(up, port, why)` reports the connection. Set
 `provides_attitude = False` if the device never reports attitude, and fusion will supply it. Register it in
-`imubench/drivers/__init__.py`. `drivers/lines.py` is the smallest complete example.
+`src/imuctl/drivers/__init__.py`. `drivers/lines.py` is the smallest complete example.

@@ -35,10 +35,13 @@ export function App() {
   return (
     <>
       <header className="top">
-        <a className="brand" href="#attitude" aria-label="imu-bench, top">
+        <a className="brand" href="#attitude" aria-label="Universal IMU Control Dashboard, top">
           <Mark />
-          imu-bench
-          <small>any IMU, live</small>
+          <span>
+            Universal IMU
+            <br />
+            Control Dashboard
+          </span>
         </a>
         <nav className="nav" aria-label="Sections">
           <a href="#attitude">Attitude</a>
@@ -64,7 +67,7 @@ export function App() {
       </main>
       <footer className="footer">
         <span>
-          imu-bench · <a href="https://github.com/Kronbii/imu-bench">github.com/Kronbii/imu-bench</a>
+          Universal IMU Control Dashboard · <a href="https://github.com/Kronbii/universal-imu-control-dashboard">github.com/Kronbii/universal-imu-control-dashboard</a>
         </span>
         <span>FRD body · NED world · SI units · docs/protocol.md</span>
       </footer>
