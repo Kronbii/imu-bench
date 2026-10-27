@@ -3,7 +3,7 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "imu-bench"
+name = "universal-imu-control-dashboard"
 version = "0.2.0"
 description = "Stream any IMU or AHRS (Inertial Sense, MAVLink, serial/UDP lines, ROS 2) to a live 3D dashboard, a recording, or ROS 2."
 readme = "README.md"
@@ -23,11 +23,12 @@ classifiers = [
 mavlink = ["pymavlink>=2.4", "pyserial>=3.5"]
 
 [project.urls]
-Homepage = "https://github.com/Kronbii/imu-bench"
-Demo = "https://kronbii.github.io/imu-bench/"
+Homepage = "https://github.com/Kronbii/universal-imu-control-dashboard"
+Demo = "https://kronbii.github.io/universal-imu-control-dashboard/"
 
 [project.scripts]
-imu-bench = "imubench.__main__:main"
+imuctl = "imuctl.__main__:main"
 
 [tool.setuptools]
-packages = ["imubench", "imubench.drivers"]
+package-dir = { "" = "src" }
+packages = ["imuctl", "imuctl.drivers"]

@@ -1,5 +1,5 @@
 /*
- * The hosted demo: the same bench messages a server would send, made in the
+ * The hosted demo: the same imuctl messages a server would send, made in the
  * page from a synthetic hand-held wobble (the Python simulator's motion, so
  * every readout agrees). On when built with VITE_DEMO=1 or opened with ?demo.
  *

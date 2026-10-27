@@ -439,7 +439,7 @@ static void handle_command(const std::string& line)
     else emit_log("unknown command: %s", cmd.c_str());
 }
 
-// stdin as a pipe means a parent (imu-bench) is driving us: its end closing
+// stdin as a pipe means a parent (imuctl) is driving us: its end closing
 // means it is gone. Any other stdin (a terminal, /dev/null) that ends just stops commands.
 static bool s_stdinOpen = true;
 static void stdin_ended()

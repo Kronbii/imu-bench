@@ -158,7 +158,7 @@ function Veil() {
             : 'Waiting for data'
   const detail =
     label === 'No server'
-      ? 'Start it with ./imu-bench <driver>; this page reconnects by itself.'
+      ? 'Start it with ./imuctl <driver>; this page reconnects by itself.'
       : why === 'unplugged'
         ? 'It reconnects on its own when the sensor comes back, whatever port name it gets.'
         : why === 'searching' && driver === 'imx'

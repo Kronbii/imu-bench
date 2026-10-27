@@ -6,7 +6,7 @@ magnetometer. The heading loop is deliberately separate from tilt so a bad
 magnetometer can only ever disturb yaw.
 
 The filter runs in Madgwick's own frames (FLU body, NWU world, gravity +z) and
-converts at the edges; in and out it speaks the bench's FRD body / NED.
+converts at the edges; in and out it speaks imuctl's FRD body / NED.
 """
 
 import math

@@ -68,7 +68,7 @@ function kalibrYaml(r: NoiseResult, rate: number, simulated: boolean) {
   const e = (v: number) => v.toExponential(3)
   return [
     `# Kalibr imu.yaml · ${model} · ${clock(r.seconds)} ${simulated ? 'simulated' : 'still'} · ${new Date().toISOString().slice(0, 10)}`,
-    '# imu-bench Allan deviation (IEEE 952), noisiest axis.',
+    '# imuctl Allan deviation (IEEE 952), noisiest axis.',
     kMeasured ? '# Random walk measured on every axis.' : '# Random walk: upper bound on some axes; record longer.',
     '# Moving platform? Inflate these (x2 to x10 is common).',
     'rostopic: /imu/data',

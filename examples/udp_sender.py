@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-A sensor in a dozen lines: send IMU samples to imu-bench as JSON over UDP.
-Swap the fake readings for your device's. Run the bench first:
+A sensor in a dozen lines: send IMU samples to imuctl as JSON over UDP.
+Swap the fake readings for your device's. Run imuctl first:
 
-  ./imu-bench lines udp:5005 --name "My IMU"
+  ./imuctl lines udp:5005 --name "My IMU"
   python3 examples/udp_sender.py
 """
 

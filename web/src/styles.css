@@ -1,5 +1,5 @@
 /*
- * IMX-5 bench, in Rami's Sage system (portfolio v7 + vneo): green-black
+ * The dashboard, in Rami's Sage system (portfolio v7 + vneo): green-black
  * ground, cream ink, one sage accent, hairline structure, Bricolage
  * Grotesque for words, Spline Sans Mono for every figure and label, one
  * Newsreader italic word per heading. Dark only, like the site.
@@ -178,13 +178,8 @@ em {
 .brand svg {
   flex: none;
 }
-.brand small {
-  font-family: var(--f-mono);
-  font-weight: 400;
-  font-size: 0.6875rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink3);
+.brand span {
+  line-height: 1.1;
 }
 .nav {
   display: flex;
@@ -1492,6 +1487,14 @@ em {
 }
 
 /* ---------- responsive ---------- */
+@media (max-width: 1240px) {
+  .nav {
+    display: none;
+  }
+  .linkpill {
+    margin-left: auto;
+  }
+}
 @media (max-width: 1100px) {
   .hero {
     grid-template-columns: 1fr;
@@ -1508,19 +1511,12 @@ em {
   }
 }
 @media (max-width: 900px) {
-  .nav {
-    display: none;
-  }
-  .linkpill {
-    margin-left: auto;
-  }
   .grid-2,
   .grid-3 {
     grid-template-columns: 1fr;
   }
 }
 @media (max-width: 640px) {
-  .brand small,
   .linkpill .port {
     display: none;
   }

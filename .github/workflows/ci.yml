@@ -21,9 +21,9 @@ jobs:
       - run: python -m unittest discover -s tests -v
       - name: CLI smoke test (simulator, recording, replay)
         run: |
-          timeout 4 ./imu-bench sim --emulate raw --no-web --record run.ndjson || true
+          timeout 4 ./imuctl sim --emulate raw --no-web --record run.ndjson || true
           grep -q '"source":"fusion"' run.ndjson
-          timeout 3 ./imu-bench replay run.ndjson --once --no-web || true
+          timeout 3 ./imuctl replay run.ndjson --once --no-web || true
 
   web:
     name: Dashboard

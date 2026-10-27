@@ -1,15 +1,16 @@
 """
-imu-bench: stream any IMU or AHRS to a live dashboard, a recording, or ROS 2.
+imuctl, the Universal IMU Control Dashboard: stream any IMU or AHRS live in 3D,
+to a recording, or to ROS 2.
 
-  imu-bench imx                         Inertial Sense IMX-5/IMX-6 via the vendor SDK
-  imu-bench mavlink [udpin:0.0.0.0:14550]   PX4, ArduPilot and other MAVLink autopilots
-  imu-bench lines /dev/ttyUSB0@115200   anything that prints JSON or CSV lines
-  imu-bench ros2 --topic /imu/data      any ROS 2 sensor_msgs/Imu topic
-  imu-bench sim [--emulate raw]         synthetic motion
-  imu-bench replay runs/desk.ndjson     a recording
+  imuctl imx                         Inertial Sense IMX-5/IMX-6 via the vendor SDK
+  imuctl mavlink [udpin:0.0.0.0:14550]   PX4, ArduPilot and other MAVLink autopilots
+  imuctl lines /dev/ttyUSB0@115200   anything that prints JSON or CSV lines
+  imuctl ros2 --topic /imu/data      any ROS 2 sensor_msgs/Imu topic
+  imuctl sim [--emulate raw]         synthetic motion
+  imuctl replay runs/desk.ndjson     a recording
 
 Common options go after the driver: --http, --host, --record, --fusion,
---ros2-publish, --no-web. `imu-bench <driver> -h` lists the driver's own.
+--ros2-publish, --no-web. `imuctl <driver> -h` lists the driver's own.
 """
 
 import argparse
@@ -44,7 +45,7 @@ def common_args():
 
 
 def build_parser():
-    ap = argparse.ArgumentParser(prog="imu-bench", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(prog="imuctl", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="driver", metavar="DRIVER", required=True)
     parent = common_args()
     for name, cls in DRIVERS.items():
@@ -131,10 +132,10 @@ def main(argv=None):
         server = serve(hub, driver, args.host, args.http, pipeline)
         threading.Thread(target=server.serve_forever, daemon=True).start()
         host = "127.0.0.1" if args.host in ("0.0.0.0", "") else args.host
-        print(f"imu-bench {args.driver}: dashboard on http://{host}:{args.http}"
+        print(f"imuctl {args.driver}: dashboard on http://{host}:{args.http}"
               + (" (fusion on)" if fusion else ""), flush=True)
     else:
-        print(f"imu-bench {args.driver}: running" + (" (fusion on)" if fusion else ""), flush=True)
+        print(f"imuctl {args.driver}: running" + (" (fusion on)" if fusion else ""), flush=True)
     try:
         while not done.wait(0.5):
             pass

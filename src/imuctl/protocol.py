@@ -1,5 +1,5 @@
 """
-The imu-bench stream: one JSON object per message, the same whatever the
+The imuctl stream: one JSON object per message, the same whatever the
 sensor. Drivers translate their device's protocol into these; the hub, the
 recorder, ROS 2 and the dashboard only ever see these. Full description:
 docs/protocol.md.

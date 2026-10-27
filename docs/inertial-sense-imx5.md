@@ -86,7 +86,7 @@ What that means in use:
 
 The same numbers in the units Kalibr, OpenVINS, VINS-Fusion and similar expect. The bias random walks are **not
 published**; measure them with an Allan variance of a 2–3 h static log from this unit: the dashboard's *Noise Lab*
-records one with `./imu-bench imx --raw-mult 1` and writes the `imu.yaml` (or use `allan_variance_ros`).
+records one with `./imuctl imx --raw-mult 1` and writes the `imu.yaml` (or use `allan_variance_ros`).
 
 ```yaml
 # imu.yaml (Kalibr format). Noise densities from the datasheet; random walks are starting guesses, not specs.

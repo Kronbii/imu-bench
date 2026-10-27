@@ -2,7 +2,7 @@
 Inertial Sense IMX-5 / IMX-6 (bare module, RUG-3, RUG-4) over the vendor SDK.
 
 The C++ bridge (bridge/imx_bridge) does the talking and prints the SDK's own
-data sets as JSON lines; ImxMapper turns those into bench messages. Anything
+data sets as JSON lines; ImxMapper turns those into imuctl messages. Anything
 IMX-specific that the dashboard's IMX panels want travels alongside as
 imx.* messages with the SDK's field names.
 """
@@ -14,7 +14,7 @@ from pathlib import Path
 
 from .base import Driver
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 BRIDGE = ROOT / "bridge" / "build" / "imx_bridge"
 
 # insStatus bits 16-19 (data_sets.h, eInsStatusFlags)
@@ -34,7 +34,7 @@ CAPS = ["attitude", "imu", "mag", "baro", "status", "sigma", "panel:imx",
 
 
 class ImxMapper:
-    """SDK data sets from the bridge in, bench messages out."""
+    """SDK data sets from the bridge in, imuctl messages out."""
 
     def __init__(self):
         self.dev = None

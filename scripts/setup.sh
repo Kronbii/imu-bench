@@ -46,5 +46,5 @@ if [ "${1:-}" = "--udev" ]; then
 fi
 
 say "Done"
-echo "Dashboard:  ./imu-bench imx              → http://127.0.0.1:8765  (./imu-bench sim without a sensor)"
+echo "Dashboard:  ./imuctl imx              → http://127.0.0.1:8765  (./imuctl sim without a sensor)"
 echo "Tools:      tools/cltool -h                  tools/evaltool"

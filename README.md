@@ -1,19 +1,19 @@
 <div align="center">
 
-# imu-bench
+# Universal IMU Control Dashboard
 
 **Plug in any IMU and see it think.** One small server turns an Inertial Sense IMX, a PX4 or ArduPilot flight
 controller, an Arduino with an MPU-6050, or any ROS 2 IMU topic into the same live 3D dashboard, a replayable
 recording, or standard ROS 2 topics.
 
-[![CI](https://github.com/Kronbii/imu-bench/actions/workflows/ci.yml/badge.svg)](https://github.com/Kronbii/imu-bench/actions/workflows/ci.yml)
-[![Live demo](https://img.shields.io/badge/live_demo-open-b7d3a8?labelColor=0b0d0c)](https://kronbii.github.io/imu-bench/)
+[![CI](https://github.com/Kronbii/universal-imu-control-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/Kronbii/universal-imu-control-dashboard/actions/workflows/ci.yml)
+[![Live demo](https://img.shields.io/badge/live_demo-open-b7d3a8?labelColor=0b0d0c)](https://kronbii.github.io/universal-imu-control-dashboard/)
 ![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-b7d3a8?labelColor=0b0d0c)
 ![License: MIT](https://img.shields.io/badge/license-MIT-b7d3a8?labelColor=0b0d0c)
 
-<img src="docs/media/hero.webp" alt="The imu-bench dashboard: an Inertial Sense RUG-3 turning in 3D over a contour-line terrain with axis callouts, live roll, pitch and yaw readouts, an attitude indicator and a heading card." width="100%">
+<img src="docs/media/hero.webp" alt="The dashboard: an Inertial Sense RUG-3 turning in 3D over a contour-line terrain with axis callouts, live roll, pitch and yaw readouts, an attitude indicator and a heading card." width="100%">
 
-<sub>The dashboard, recorded frame by frame from its built-in simulator. <a href="https://kronbii.github.io/imu-bench/">Open the live demo</a>: it runs in your browser, no hardware or install, every panel live.</sub>
+<sub>The dashboard, recorded frame by frame from its built-in simulator. <a href="https://kronbii.github.io/universal-imu-control-dashboard/">Open the live demo</a>: it runs in your browser, no hardware or install, every panel live.</sub>
 
 </div>
 
@@ -42,7 +42,7 @@ that reads every axis at one instant, 5 to 60 s windows, pause, and CSV export o
 <tr>
 <td width="50%" valign="top">
 
-**Unplug it, plug it back.** The bench follows a USB sensor across replugs, whatever `/dev/ttyACM*` it comes back
+**Unplug it, plug it back.** The server follows a USB sensor across replugs, whatever `/dev/ttyACM*` it comes back
 as, detects the unplug within a quarter of a second, and picks the stream back up on its own.
 
 </td>
@@ -151,18 +151,18 @@ Adding a sensor means writing one driver that emits [a handful of plain JSON mes
 ## Quick start
 
 ```bash
-git clone --recursive https://github.com/Kronbii/imu-bench.git && cd imu-bench
+git clone --recursive https://github.com/Kronbii/universal-imu-control-dashboard.git && cd universal-imu-control-dashboard
 ./scripts/setup.sh                 # vendor SDK, C++ bridge, dashboard (Node 20+ for the dashboard build)
 
-./imu-bench sim                    # no hardware: open http://127.0.0.1:8765
-./imu-bench imx                    # an Inertial Sense unit on USB, found automatically
-./imu-bench mavlink                # PX4 / ArduPilot on UDP 14550 (pip install pymavlink)
-./imu-bench lines /dev/ttyUSB0@115200 --gyro-unit dps --acc-unit g --name MPU-6050
-./imu-bench ros2 --topic /imu/data # after sourcing ROS 2
+./imuctl sim                    # no hardware: open http://127.0.0.1:8765
+./imuctl imx                    # an Inertial Sense unit on USB, found automatically
+./imuctl mavlink                # PX4 / ArduPilot on UDP 14550 (pip install pymavlink)
+./imuctl lines /dev/ttyUSB0@115200 --gyro-unit dps --acc-unit g --name MPU-6050
+./imuctl ros2 --topic /imu/data # after sourcing ROS 2
 ```
 
 Every driver takes the same extras: `--record run.ndjson`, `--fusion on|off|auto`, `--ros2-publish`, `--magcal cal.json`,
-`--host 0.0.0.0`, `--no-web`. `./imu-bench <driver> -h` lists the rest. Only the dashboard build needs Node; the server is Python 3.8+
+`--host 0.0.0.0`, `--no-web`. `./imuctl <driver> -h` lists the rest. Only the dashboard build needs Node; the server is Python 3.8+
 with no dependencies (pymavlink for MAVLink, a sourced ROS 2 for ROS 2).
 
 ## How it fits together
@@ -173,7 +173,7 @@ flowchart LR
   B["PX4 / ArduPilot<br/>MAVLink"] --> D
   C["Arduino, ESP32, scripts<br/>JSON / CSV lines"] --> D
   R["ROS 2<br/>sensor_msgs/Imu"] --> D
-  D["driver<br/>to bench messages<br/>FRD, NED, SI"] --> F{"attitude<br/>reported?"}
+  D["driver<br/>to imuctl messages<br/>FRD, NED, SI"] --> F{"attitude<br/>reported?"}
   F -- no --> M["Madgwick fusion"] --> H
   F -- yes --> H["hub"]
   H --> W["dashboard<br/>Server-Sent Events"]
@@ -199,11 +199,11 @@ drifts, and the dashboard says so.
 ## ROS 2
 
 ```bash
-./imu-bench imx --ros2-publish        # /imu/data, /imu/mag, /imu/pressure, frame imu_link
-./imu-bench ros2 --topic /camera/imu  # and the other way: any Imu topic into the dashboard
+./imuctl imx --ros2-publish        # /imu/data, /imu/mag, /imu/pressure, frame imu_link
+./imuctl ros2 --topic /camera/imu  # and the other way: any Imu topic into the dashboard
 ```
 
-ROS uses FLU/ENU (REP-103); the bench converts at that boundary and nowhere else. Publishing and then subscribing
+ROS uses FLU/ENU (REP-103); imuctl converts at that boundary and nowhere else. Publishing and then subscribing
 to the same topic returns the original attitude to within 0.001°.
 
 ## Inertial Sense IMX-5
@@ -228,7 +228,7 @@ adds a `/dev/imx5` link. Build the dashboard on any machine and copy `web/dist/`
 ## Project layout
 
 ```
-imubench/   the server: drivers, protocol, fusion, hub, HTTP, ROS 2       imu-bench   launcher, no install needed
+src/imuctl/ the server: drivers, protocol, fusion, hub, HTTP, ROS 2       imuctl      launcher, no install needed
 bridge/     C++ bridge on the Inertial Sense SDK                          sdk/        Inertial Sense SDK 2.7.1 (submodule)
 web/        the dashboard (React, three.js, WebGL), its maths, the demo   tools/      cltool and EvalTool launchers
 docs/       protocol, IMX-5 guide, media                                   examples/   Arduino MPU-6050 sketch, UDP sender
@@ -240,12 +240,12 @@ tests/      protocol, fusion, parsing, IMX and MAVLink decoding           script
 ```bash
 python3 -m unittest discover -s tests   # 20 tests: maths, fusion accuracy, parsers, IMX and MAVLink decoding
 cd web && npm test                      # 12 tests: spectra, Allan deviation, ellipsoid fit, camera geometry
-cd web && npm run dev                   # dashboard with hot reload on :5173, against a running ./imu-bench
+cd web && npm run dev                   # dashboard with hot reload on :5173, against a running ./imuctl
 ```
 
 CI runs the Python tests on 3.8 and 3.12 and the dashboard's maths tests, builds the dashboard, and compiles the
 SDK and bridge. Every push to
-`main` redeploys the [live demo](https://kronbii.github.io/imu-bench/).
+`main` redeploys the [live demo](https://kronbii.github.io/universal-imu-control-dashboard/).
 
 The dashboard's look follows [ramikronbi.com](https://ramikronbi.com). MIT licensed; the Inertial Sense SDK is MIT
 under its own copyright.

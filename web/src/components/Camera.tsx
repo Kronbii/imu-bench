@@ -158,7 +158,7 @@ function extrinsicsYaml(s: Settings, size: [number, number]) {
   const f = size[0] / 2 / Math.tan((s.hfov * DEG) / 2)
   const row = (i: number) => `  - [${[R[i * 3], R[i * 3 + 1], R[i * 3 + 2]].map((v) => v.toFixed(6)).join(', ')}, 0.0]`
   return [
-    '# camchain-imucam.yaml (Kalibr layout), from the imu-bench horizon overlay.',
+    '# camchain-imucam.yaml (Kalibr layout), from the imuctl horizon overlay.',
     '# Rotation and time offset only; IMU frame FLU, as published on ROS 2.',
     `# ${s.mountName}-looking, trims roll ${s.trim[0].toFixed(1)}°, pitch ${s.trim[1].toFixed(1)}°, yaw ${s.trim[2].toFixed(1)}°.`,
     '# Translation not measured: fill in the lever arm.',
